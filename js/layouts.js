@@ -1,3 +1,5 @@
+import { deviceLayouts } from './devices.js';
+
 // Strip sizes. Every number is in "layout px" — the export canvas is W×H times
 // `exportScale`, and on-screen previews are the same geometry at a smaller scale,
 // so what you see while picking is exactly what you download.
@@ -68,7 +70,7 @@ function y2k(n) {
   };
 }
 
-export const LAYOUTS = { vertical, grid, duo, polaroid, y2k1: y2k(1), y2k2: y2k(2), y2k3: y2k(3), y2k4: y2k(4) };
+export const LAYOUTS = { vertical, grid, duo, polaroid, y2k1: y2k(1), y2k2: y2k(2), y2k3: y2k(3), y2k4: y2k(4), ...deviceLayouts() };
 export const LAYOUT_ORDER = ['vertical', 'grid', 'duo', 'polaroid'];
 
 // Every slot in a layout shares one shape, so the camera preview can be cropped to it.

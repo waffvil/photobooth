@@ -3,6 +3,7 @@
 import { LAYOUTS } from './layouts.js';
 import { frameById, paintFrame } from './frames.js';
 import { applyFilter } from './filters.js';
+import { drawDevice, drawScreenHud, drawGlare } from './devices.js';
 
 export const CAPTION_FONT = '"Gowun Batang", Georgia, serif';
 export const MONO_FONT = '"Space Mono", ui-monospace, monospace';
@@ -107,6 +108,7 @@ export function renderStrip(opts, scale = 1, canvas = document.createElement('ca
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
+  if (L.device) return renderDevice(L, opts, scale, canvas, ctx);
   paintFrame(ctx, f, W, H, scale, Math.min(L.W, L.H) / 600);
 
   L.slots.forEach((sl, i) => {
@@ -180,6 +182,26 @@ export function drawStamp(ctx, x, y, w, h, date) {
   ctx.shadowBlur = px * 0.35;
   ctx.fillText(stampText(date), x + w - w * 0.045, y + h - h * 0.06);
   ctx.restore();
+}
+
+// A device: body, the photo on its screen, the screen's own overlay, glass glare.
+function renderDevice(L, opts, scale, canvas, ctx) {
+  drawDevice(ctx, L.device, opts.skin, scale, { backdrop: opts.backdrop !== false });
+  const sl = L.slots[0];
+  const x = Math.round(sl.x * scale), y = Math.round(sl.y * scale);
+  const w = Math.round((sl.x + sl.w) * scale) - x, h = Math.round((sl.y + sl.h) * scale) - y;
+  const shot = opts.photos?.[0];
+  if (shot) {
+    ctx.drawImage(photoFor(shot, w, h, opts.filter || 'original'), x, y);
+    if (opts.stamp) drawStamp(ctx, x, y, w, h * (L.device === 'flip' || L.device === 'bar' ? 0.92 : 1), opts.date);
+  } else {
+    ctx.fillStyle = '#10141C';
+    ctx.fillRect(x, y, w, h);
+  }
+  if (opts.hud !== false) drawScreenHud(ctx, L.device, x, y, w, h, { index: opts.index, total: opts.total, date: opts.date });
+  drawGlare(ctx, x, y, w, h);
+  if (opts.deco) drawDeco(ctx, opts.deco, canvas.width, canvas.height);
+  return canvas;
 }
 
 // shrink the font until `text` fits `maxW`

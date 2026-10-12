@@ -416,71 +416,41 @@ body.y2k .dialog { color: var(--ink); }
 .scene.dc .topbar { position: relative; }
 .dc-counter { font-family: var(--lcd); font-size: 26px; color: #fff; text-shadow: 0 0 10px rgba(255, 255, 255, .6); }
 .dc-logo {
-  margin: 0 0 14px; font-family: "Pretendard", system-ui, sans-serif; font-weight: 300; font-size: 64px; letter-spacing: -.04em; line-height: 1;
+  margin: 0 0 10px; font-family: "Pretendard", system-ui, sans-serif; font-weight: 300; font-size: 48px; letter-spacing: -.04em; line-height: 1;
   color: #FFF4FB; text-shadow: 0 0 18px rgba(255, 200, 240, .6);
 }
-.dc-logo sup { font-size: 26px; vertical-align: 26px; margin-left: 2px; }
+.dc-logo sup { font-size: 20px; vertical-align: 20px; margin-left: 2px; }
 
-.dc-eds { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; width: calc(100% + var(--gutter) * 2); margin: 0 calc(var(--gutter) * -1) 18px; padding: 4px var(--gutter) 6px; justify-content: safe center; }
+.dc-eds { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; width: calc(100% + var(--gutter) * 2); margin: 0 calc(var(--gutter) * -1) 18px; padding: 4px var(--gutter) 6px; justify-content: safe center; }
 .dc-eds::-webkit-scrollbar { display: none; }
 .dc-ed { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: var(--pixel); font-size: 11px; color: rgba(255, 255, 255, .7); }
-.dc-ed .cam-mini { width: 54px; height: 38px; border-radius: 9px; position: relative; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .7), 0 3px 8px rgba(0, 0, 0, .35); outline: 2px solid transparent; outline-offset: 3px; transition: outline-color .2s, transform .2s; }
-.dc-ed .cam-mini::after { content: ""; position: absolute; left: 6px; top: 6px; width: 30px; height: 24px; border-radius: 3px; background: #111; }
 .dc-ed.on { color: #fff; }
-.dc-ed.on .cam-mini { outline-color: #fff; transform: translateY(-2px); }
 
-/* the camera body (back view) */
-.cam-wrap { width: 100%; display: flex; justify-content: center; padding-top: 14px; margin-bottom: 18px; }
-.cam {
-  position: relative; width: min(100%, 440px); aspect-ratio: 1.6; border-radius: 28px;
-  padding: 5.5% 5% 5.5% 5.5%; display: flex; align-items: center; gap: 4%;
-  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .75), inset 0 -4px 8px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(0, 0, 0, .15), 0 24px 50px rgba(0, 0, 0, .45);
-  transition: background .4s;
-}
-.cam-top { position: absolute; top: -11px; right: 13%; display: flex; gap: 14px; align-items: flex-end; }
-.cam-dial { width: 34px; height: 9px; border-radius: 4px 4px 0 0; background: linear-gradient(#ddd, #888); box-shadow: inset 0 1px 0 #fff; }
-.cam-shutter { width: 40px; height: 13px; border-radius: 8px 8px 0 0; background: linear-gradient(#fff, #B9BEC8); box-shadow: inset 0 1px 0 #fff, 0 -1px 2px rgba(0, 0, 0, .3); transition: transform .08s; }
-.cam-shutter.down { transform: translateY(4px); }
-.cam-lcd {
-  position: relative; flex: 0 0 70%; aspect-ratio: 4 / 3; border-radius: 9px; overflow: hidden; background: #050507;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, .75), 0 0 0 5px rgba(255, 255, 255, .35), inset 0 0 20px rgba(0, 0, 0, .8);
-}
-.cam-lcd video, .dc-review { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.cam-lcd video.mirror { transform: scaleX(-1); }
-.cam-lcd::after { /* glass glare */
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(125deg, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, 0) 38%), repeating-linear-gradient(0deg, rgba(0, 0, 0, .08) 0 1px, transparent 1px 3px);
-}
-.dc-hud { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 6px 9px; font-family: var(--lcd); font-size: clamp(14px, 4.4vw, 19px); color: #fff; text-shadow: 0 0 3px #000, 0 0 1px #000; pointer-events: none; text-align: left; }
-.dc-hud-row { display: flex; justify-content: space-between; align-items: center; }
-.dc-hud-stamp { color: #FF9A2E; text-shadow: 0 0 6px rgba(255, 110, 20, .9); }
-.dc-batt { display: inline-flex; gap: 2px; padding: 2px; border: 1.5px solid #fff; border-radius: 2px; }
-.dc-batt i { width: 4px; height: 8px; background: #8CFF6A; }
-.dc-focus { position: absolute; left: 50%; top: 50%; width: 34%; height: 40%; transform: translate(-50%, -50%); }
-.dc-focus i { position: absolute; width: 14px; height: 14px; border: 2px solid rgba(140, 255, 106, .9); }
-.dc-focus i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
-.dc-focus i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
-.dc-focus i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
-.dc-focus i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
-.dc-count { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--lcd); font-size: clamp(70px, 24vw, 120px); color: #fff; text-shadow: 0 0 16px rgba(0, 0, 0, .7); pointer-events: none; }
+/* the live device: canvas body + the screen laid over it */
+.dc-stage { position: relative; margin: 6px auto 16px; }
+.dc-stage > canvas { display: block; }
+.dc-screen { position: absolute; overflow: hidden; background: #050507; border-radius: 3px; }
+.dc-screen video, .dc-review { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.dc-screen video.mirror { transform: scaleX(-1); }
+.dc-hudc { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.dc-screen::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(125deg, rgba(255, 255, 255, .18) 0%, rgba(255, 255, 255, 0) 40%), repeating-linear-gradient(0deg, rgba(0, 0, 0, .07) 0 1px, transparent 1px 3px); }
+.dc-count { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--lcd); font-size: clamp(64px, 22vw, 120px); color: #fff; text-shadow: 0 0 16px rgba(0, 0, 0, .7); pointer-events: none; }
 .dc-count.tick { animation: tick 1s ease-out; }
-.dc-lcd-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px; font-family: var(--lcd); font-size: 17px; color: #9BE6FF; background: #0A1A2A; }
+.dc-lcd-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px; font-family: var(--lcd); font-size: 17px; color: #9BE6FF; background: #0A1A2A; text-align: center; }
 .dc-lcd-msg b { font-weight: 400; font-size: 26px; color: #fff; animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: .2; } }
-.cam-side { flex: 1; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 2% 0; }
-.cam-btns { display: flex; gap: 6px; }
-.cam-btns span, .cam-small {
-  display: grid; place-items: center; width: 26px; height: 16px; border-radius: 8px; font-size: 9px; color: #444;
-  background: linear-gradient(#fff, #C5C9D2); box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0, 0, 0, .35);
+
+/* device picker */
+.dc-devs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: min(100%, 440px); margin-bottom: 4px; }
+.dc-dev {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px 6px; border-radius: 12px;
+  font-family: var(--pixel); font-size: 10px; color: rgba(255, 255, 255, .75); border: 1.5px solid transparent; transition: background .2s, border-color .2s;
 }
-.cam-small { width: 20px; height: 20px; border-radius: 50%; font-size: 10px; }
-.cam-speaker { width: 34px; height: 16px; background: radial-gradient(circle, rgba(0, 0, 0, .55) 1.4px, transparent 1.7px) 0 0 / 6px 5px; }
-.cam-dpad {
-  width: min(16vw, 66px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 35%, #fff, #B9BEC8 70%, #8D93A0);
-  box-shadow: inset 0 1px 1px #fff, inset 0 -2px 4px rgba(0, 0, 0, .3), 0 2px 5px rgba(0, 0, 0, .35);
-}
-.cam-dpad span { width: 40%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #fff, #C9CDD6); box-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+.dc-dev.on { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .55); color: #fff; }
+.dc-dev-art { height: 56px; display: grid; place-items: center; }
+.swatch-dot { width: 30px; height: 30px; border-radius: 50%; display: block; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .7), 0 2px 6px rgba(0, 0, 0, .35); outline: 2px solid transparent; outline-offset: 3px; }
+.dc-ed .swatch-dot { width: 34px; height: 34px; }
+.dc-ed.on .swatch-dot, .colour-chip.is-selected .swatch-dot { outline-color: #fff; }
 
 /* skins (shared by the big camera and the mini chips) */
 .skin-lace {
@@ -498,7 +468,6 @@ body.y2k .dialog { color: var(--ink); }
     linear-gradient(160deg, #FFC4E2, #FF79B8 60%, #F05AA2);
 }
 .skin-midnight { background: linear-gradient(160deg, #3B3B48, #16161D 55%, #0B0B10); }
-.skin-midnight .cam-btns span, .skin-midnight .cam-small { background: linear-gradient(#C6FF4D, #8BC21C); }
 .skin-mint { background: linear-gradient(160deg, #DFFFF2, #9BE8CC 55%, #6ED3B0); }
 .skin-dream { background: linear-gradient(135deg, #BFE0FF, #E3C8FF 50%, #FFC2E2); }
 
@@ -526,13 +495,36 @@ body.y2k .dc-snap { background: rgba(0, 0, 0, .5); }
 .dc-seg-label { font-family: var(--pixel); font-size: 10px; color: rgba(255, 255, 255, .6); margin: 0 4px 0 2px; }
 .dc-settings .seg { font-family: var(--pixel); font-weight: 400; font-size: 12px; }
 
-.dc-tray { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 8px; width: min(100%, 360px); }
-.dc-cut { aspect-ratio: 4 / 3; border-radius: 6px; border: 1.5px dashed rgba(255, 255, 255, .4); display: grid; place-items: center; font-family: var(--lcd); font-size: 18px; color: rgba(255, 255, 255, .5); overflow: hidden; }
+.dc-tray { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 8px; width: min(100%, 300px); margin-bottom: 4px; }
+.dc-cut { aspect-ratio: var(--ar, 4 / 3); border-radius: 6px; border: 1.5px dashed rgba(255, 255, 255, .4); display: grid; place-items: center; font-family: var(--lcd); font-size: 18px; color: rgba(255, 255, 255, .5); overflow: hidden; }
 .dc-cut.filled { border: 0; animation: pop .35s cubic-bezier(.2, 1.6, .4, 1); box-shadow: 0 0 0 2px #fff; }
 .dc-cut img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.dc-hint { font-size: 13px; color: rgba(255, 255, 255, .6); margin: 10px 0 0; }
+.dc-hint { font-size: 13px; color: rgba(255, 255, 255, .6); margin: 6px 0 0; }
+.dc-eds { margin-top: 18px !important; }
 
 @media (max-width: 370px) {
-  .dc-logo { font-size: 52px; }
+  .dc-logo { font-size: 40px; }
   .dc-chips { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* style step: format, cuts, devices, colours */
+.format-segs { align-self: flex-start; margin-bottom: 14px; }
+.format-segs .seg { padding: 0 14px; }
+.cut-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.cut-thumb { width: 54px; height: 54px; border-radius: 8px; overflow: hidden; border: 2.5px solid transparent; opacity: .65; transition: opacity .2s; }
+.cut-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cut-thumb.is-selected { border-color: #fff; opacity: 1; box-shadow: 0 0 14px rgba(255, 180, 240, .6); }
+.device-chip, .colour-chip { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px; border-radius: 12px; font-family: var(--pixel); font-size: 10px; color: rgba(255, 255, 255, .75); border: 1.5px solid transparent; }
+.device-chip.is-selected { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .55); color: #fff; }
+.colour-chip.is-selected { color: #fff; }
+.device-art { height: 60px; display: grid; place-items: center; }
+
+/* save step: one picture per cut, swipeable */
+.gallery-wrap { width: 100%; max-width: 520px; }
+.device-gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; gap: 0; }
+.device-gallery::-webkit-scrollbar { display: none; }
+.gallery-item { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; padding: 4px 0 10px; }
+.gallery-item .final-img { max-width: 100%; max-height: 62vh; width: auto; height: auto; border-radius: 6px; }
+.gallery-dots { display: flex; justify-content: center; gap: 6px; }
+.gallery-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, .35); }
+.gallery-dots i.on { background: #fff; }

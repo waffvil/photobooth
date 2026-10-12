@@ -1,8 +1,10 @@
-// Y2K digicam mode: pick a camera "edition", see yourself on its LCD with a live
-// digicam look, and snap each cut by hand. The shots then go through the same
-// style / decorate / save steps as the classic booth.
+// Y2K digicam mode: pick a device (digicam, slim cam, flip phone, phone) and a body
+// colour, see yourself live on its screen, and snap each cut by hand. By default each
+// photo comes out *on the device*, the way it looked when you took it.
 import { Y2K_FILTERS, filterById } from './filters.js';
-import { stampText } from './render.js';
+import { drawStamp } from './render.js';
+import { LAYOUTS } from './layouts.js';
+import { DEVICES, DEVICE_ORDER, drawDevice, drawScreenHud } from './devices.js';
 import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
 
 export const EDITIONS = [
@@ -25,8 +27,21 @@ const ICONS = {
   flip: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20v-4h-4"/></svg>',
 };
 
+// A device drawn into a canvas element at a CSS size (no backdrop), for pickers and
+// the live camera. Returns the canvas and the CSS scale it was drawn at.
+export function deviceCanvas(deviceId, skinId, maxW, maxH) {
+  const L = LAYOUTS[`dev-${deviceId}`];
+  const k = Math.min(maxW / L.W, maxH / L.H);
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const c = document.createElement('canvas');
+  c.width = Math.round(L.W * k * dpr); c.height = Math.round(L.H * k * dpr);
+  c.style.width = `${L.W * k}px`; c.style.height = `${L.H * k}px`;
+  drawDevice(c.getContext('2d'), deviceId, skinId, k * dpr, { backdrop: false });
+  return { canvas: c, k, L };
+}
+
 export function digicamScene(ctx) {
-  const { S, h, icon, toast, header, go, savePrefs, fontsReady, addShot, autoFill } = ctx;
+  const { S, h, toast, header, go, savePrefs, fontsReady, addShot, syncLayout } = ctx;
 
   return () => {
     let alive = true;
@@ -40,48 +55,29 @@ export function digicamScene(ctx) {
     const counter = h('span.dc-counter');
     hd.root.querySelector('.topbar').append(counter);
 
-    // --- the camera -----------------------------------------------------------
+    // --- the live device ----------------------------------------------------------
     const video = h('video', { autoplay: true, muted: true, playsinline: true });
     const review = h('img.dc-review', { alt: '', hidden: true });
+    const hudCanvas = h('canvas.dc-hudc');
     const countdown = h('div.dc-count');
     const flash = h('div.flash');
     const lcdMsg = h('div.dc-lcd-msg', { hidden: true });
-    const hudCut = h('span');
-    const hudStamp = h('span.dc-hud-stamp');
-    const hud = h('div.dc-hud', { 'aria-hidden': 'true' }, [
-      h('div.dc-hud-row', {}, [h('span', { text: '▣ P  ϟA' }), h('span.dc-batt', {}, [h('i'), h('i'), h('i')])]),
-      h('div.dc-focus', {}, [h('i'), h('i'), h('i'), h('i')]),
-      h('div.dc-hud-row', {}, [hudCut, hudStamp]),
-    ]);
-    const lcd = h('div.cam-lcd', {}, [video, review, hud, countdown, flash, lcdMsg]);
-    const shutterBtn = h('button.cam-shutter', { 'aria-label': 'Shutter', onclick: snap });
-    const cam = h('div.cam', {}, [
-      h('div.cam-top', {}, [h('span.cam-dial'), shutterBtn]),
-      lcd,
-      h('div.cam-side', {}, [
-        h('div.cam-btns', {}, [h('span', { text: '▶' }), h('span', { text: '◉' })]),
-        h('span.cam-speaker'),
-        h('span.cam-dpad', {}, h('span')),
-        h('span.cam-small', { text: '⌫' }),
-      ]),
-    ]);
+    const screen = h('div.dc-screen', {}, [video, review, hudCanvas, countdown, flash, lcdMsg]);
+    const stage = h('div.dc-stage');
 
-    // --- editions ---------------------------------------------------------------
-    const edChips = EDITIONS.map((e) => h('button.dc-ed', {
-      'aria-label': `${e.name} edition`,
-      onclick: () => setEdition(e.id),
-    }, [h(`span.cam-mini.skin-${e.id}`), h('span', { text: e.name })]));
+    // --- pickers ------------------------------------------------------------------
+    const devBtns = DEVICE_ORDER.map((id) => h('button.dc-dev', { 'aria-label': DEVICES[id].name, onclick: () => setDevice(id) }));
+    const devRow = h('div.dc-devs', {}, devBtns);
+    const edChips = EDITIONS.map((e) => h('button.dc-ed', { 'aria-label': `${e.name} colour`, onclick: () => setEdition(e.id) },
+      [h(`span.swatch-dot.skin-${e.id}`), h('span', { text: e.name })]));
     const edRow = h('div.dc-eds', {}, edChips);
-
-    // --- filters ----------------------------------------------------------------
     const fChips = Y2K_FILTERS.map((f) => h('button.dc-chip', { text: f.name, onclick: () => setFilter(f.id) }));
 
-    // --- controls ---------------------------------------------------------------
+    // --- controls -----------------------------------------------------------------
     const fileInput = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true, onchange: onFiles });
     const snapBtn = h('button.dc-snap', { text: 'Snap', onclick: snap });
     const uploadBtn = h('button.dc-small', { text: 'Upload', onclick: () => fileInput.click() });
     const flipBtn = h('button.dc-small.dc-flip', { 'aria-label': 'Switch camera', html: ICONS.flip, onclick: flip });
-
     const cutSegs = [1, 2, 3, 4].map((n) => h('button.seg', { text: String(n), onclick: () => setCuts(n) }));
     const timerSegs = [[0, 'off'], [3, '3s'], [5, '5s']].map(([t, label]) => h('button.seg', { text: label, onclick: () => setTimer(t) }));
     const settings = h('div.dc-settings', {}, [
@@ -94,19 +90,53 @@ export function digicamScene(ctx) {
     ctx.app.append(h('main.scene.dc', {}, [
       hd.root,
       h('h1.dc-logo', {}, [h('span', { text: 'digicam' }), h('sup', { text: '✦' })]),
-      edRow,
-      h('div.cam-wrap', {}, cam),
-      h('div.dc-chips', {}, fChips),
+      devRow,
+      stage,
       h('div.dc-controls', {}, [uploadBtn, snapBtn, flipBtn]),
-      settings,
       tray,
       hint,
+      edRow,
+      h('div.dc-chips', {}, fChips),
+      settings,
       fileInput,
     ]));
 
-    // --- state → screen -----------------------------------------------------------
+    // --- drawing --------------------------------------------------------------------
+    let screenBox = null;
+    function drawStage() {
+      const maxW = Math.min(stage.clientWidth || window.innerWidth - 32, 460);
+      const portrait = DEVICES[S.device].kind === 'phone';
+      const maxH = portrait ? Math.min(window.innerHeight * 0.5, 500) : 320;
+      const { canvas, k, L } = deviceCanvas(S.device, S.edition, maxW, maxH);
+      const sl = L.slots[0];
+      screenBox = { w: sl.w * k, h: sl.h * k };
+      Object.assign(screen.style, { left: `${sl.x * k}px`, top: `${sl.y * k}px`, width: `${screenBox.w}px`, height: `${screenBox.h}px` });
+      stage.style.width = canvas.style.width;
+      stage.style.height = canvas.style.height;
+      stage.replaceChildren(canvas, screen);
+      drawHud();
+    }
+    function drawHud() {
+      if (!screenBox) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const w = Math.round(screenBox.w * dpr), hh = Math.round(screenBox.h * dpr);
+      hudCanvas.width = w; hudCanvas.height = hh;
+      const g = hudCanvas.getContext('2d');
+      g.clearRect(0, 0, w, hh);
+      const phone = DEVICES[S.device].kind === 'phone';
+      if (S.stamp) drawStamp(g, 0, 0, w, hh * (phone ? 0.92 : 1));
+      drawScreenHud(g, S.device, 0, 0, w, hh, { index: Math.min(S.shots.length, S.cuts - 1), total: S.cuts });
+    }
+    function drawDeviceButtons() {
+      devBtns.forEach((b, i) => {
+        const id = DEVICE_ORDER[i];
+        const { canvas } = deviceCanvas(id, S.edition, 64, 56);
+        b.replaceChildren(h('span.dc-dev-art', {}, canvas), h('span', { text: DEVICES[id].name }));
+      });
+    }
+
     function paint() {
-      cam.className = `cam skin-${ed.id}`;
+      devBtns.forEach((b, i) => b.classList.toggle('on', DEVICE_ORDER[i] === S.device));
       edChips.forEach((c, i) => c.classList.toggle('on', EDITIONS[i].id === ed.id));
       fChips.forEach((c, i) => c.classList.toggle('on', Y2K_FILTERS[i].id === S.filter));
       cutSegs.forEach((c, i) => c.classList.toggle('on', i + 1 === S.cuts));
@@ -115,35 +145,39 @@ export function digicamScene(ctx) {
       video.style.filter = css;
       review.style.filter = css;
       counter.textContent = `${S.shots.length}/${S.cuts}`;
-      hudCut.textContent = `${Math.min(S.shots.length + 1, S.cuts)}/${S.cuts}`;
-      hudStamp.textContent = S.stamp ? stampText() : '';
+      const L = LAYOUTS[`dev-${S.device}`];
       tray.style.setProperty('--n', S.cuts);
+      tray.style.setProperty('--ar', `${L.slots[0].w} / ${L.slots[0].h}`);
       tray.replaceChildren(...Array.from({ length: S.cuts }, (_, i) => {
         const shot = S.shots[i];
         if (!shot) return h('span.dc-cut', { text: String(i + 1) });
         return h('button.dc-cut.filled', { 'aria-label': `Retake cut ${i + 1}`, onclick: () => removeShot(i) },
-          h('img', { src: shot.thumb, alt: '', style: { filter: filterById(S.filter).css || 'none' } }));
+          h('img', { src: shot.thumb, alt: '', style: { filter: css } }));
       }));
       hint.hidden = !S.shots.length;
       settings.classList.toggle('locked', busy);
-      snapBtn.disabled = busy || (!camReady);
+      snapBtn.disabled = busy || !camReady;
       document.body.style.setProperty('--y2k-bg', ed.page);
+      drawHud();
     }
 
+    function setDevice(id) {
+      if (busy) return;
+      S.device = id; syncLayout(); savePrefs();
+      drawStage(); paint();
+    }
     function setEdition(id) {
       ed = editionById(id);
       S.edition = id; S.frame = ed.frame; S.filter = ed.filter; S.caption = ed.caption;
       savePrefs();
-      paint();
+      drawStage(); drawDeviceButtons(); paint();
     }
     function setFilter(id) { S.filter = id; paint(); }
     function setCuts(n) {
       if (busy) return;
       S.cuts = n;
-      S.layout = `y2k${n}`;
       if (S.shots.length > n) S.shots.length = n;
-      savePrefs();
-      paint();
+      syncLayout(); savePrefs(); paint();
     }
     function setTimer(t) { S.dcTimer = t; paint(); }
     function removeShot(i) {
@@ -152,7 +186,7 @@ export function digicamScene(ctx) {
       paint();
     }
 
-    // --- camera ---------------------------------------------------------------------
+    // --- camera -----------------------------------------------------------------------
     async function startCam() {
       lcdMsg.hidden = true;
       camReady = false;
@@ -199,12 +233,10 @@ export function digicamScene(ctx) {
       countdown.textContent = '';
       shutter();
       flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
-      shutterBtn.classList.add('down');
       const shot = addShot(grabFrame(video, S.facing === 'user'));
       review.src = shot.thumb;
       review.hidden = false;
       await wait(650);
-      shutterBtn.classList.remove('down');
       review.hidden = true;
       busy = false;
       paint();
@@ -230,16 +262,16 @@ export function digicamScene(ctx) {
       busy = true; paint();
       await wait(500);
       if (!alive) return;
-      S.layout = `y2k${S.cuts}`;
-      autoFill();
       go('style');
     }
 
-    S.layout = `y2k${S.cuts}`;
-    paint();
-    fontsReady.then(() => alive && paint());
+    const onResize = () => drawStage();
+    window.addEventListener('resize', onResize);
+    syncLayout();
+    drawStage(); drawDeviceButtons(); paint();
+    fontsReady.then(() => { if (alive) { drawStage(); drawDeviceButtons(); paint(); } });
     startCam();
 
-    return () => { alive = false; closeCamera(); };
+    return () => { alive = false; closeCamera(); window.removeEventListener('resize', onResize); };
   };
 }
