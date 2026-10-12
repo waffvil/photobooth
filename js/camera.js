@@ -112,15 +112,26 @@ function thump(t, from, to, vol, dur) {
   o.start(t); o.stop(t + dur + 0.02);
 }
 
-// The old-browser "navigation" click: one crisp tick with a short hollow, plasticky
-// ring (two resonances), the way a link click sounded on a 2000s desktop.
+// The old-browser "navigation" click, a two-part "tick-um": a bright tick, then a
+// softer, lower "um" that rounds off just after it.
 export function click() {
   if (!ready()) return;
   const t = ac.currentTime + 0.001;
-  tick(t, 7000, 0.5, 0.006, 0.7, 'highpass');
-  tick(t, 1450, 3.4, 0.05, 9);
-  tick(t, 3100, 1.5, 0.035, 7);
-  thump(t, 600, 220, 0.08, 0.015);
+  // tick
+  tick(t, 5500, 1.5, 0.008, 1.2);
+  tick(t, 2400, 1.9, 0.012, 3);
+  // um
+  const u = t + 0.022;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(560, u);
+  o.frequency.exponentialRampToValueAtTime(360, u + 0.09);
+  g.gain.setValueAtTime(0.0001, u);
+  g.gain.exponentialRampToValueAtTime(0.27, u + 0.007);
+  g.gain.exponentialRampToValueAtTime(0.0001, u + 0.1);
+  o.connect(g).connect(master);
+  o.start(u); o.stop(u + 0.12);
+  tick(u, 700, 1.5, 0.06, 5);
 }
 
 // A round digicam beep: soft attack, a quiet octave on top, gentle tail.
