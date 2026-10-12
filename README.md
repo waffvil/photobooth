@@ -74,9 +74,9 @@ this app (`assets/devices/`), and each keeps its own licence:
 | [Motorola RAZR V3 (white)](https://commons.wikimedia.org/wiki/File:Motorola_Razr_V3_montage_closed_open.png) | Raimond Spekking | CC BY-SA 4.0 |
 | [Nokia 2760](https://commons.wikimedia.org/wiki/File:Nokia_2760_open.png) | AnVuong1222004 | CC BY-SA 4.0 |
 
-The button click (`assets/sounds/click.wav`) is from Kenney's [UI Audio](https://kenney.nl/assets/ui-audio)
-pack, CC0. The other sounds are
-synthesised in the browser.
+The button click (`assets/sounds/click.wav`) is "Mouse Click" by voicebosch on
+[Pixabay](https://pixabay.com/sound-effects/), used under the Pixabay Content License and trimmed
+to the press and release. The beeps and shutter are synthesised in the browser.
 
 Brand names and logos on the devices belong to their owners. This project isn't
 affiliated with any of them.

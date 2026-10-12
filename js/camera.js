@@ -113,8 +113,8 @@ function thump(t, from, to, vol, dur) {
   o.start(t); o.stop(t + dur + 0.02);
 }
 
-// Button click: a real recorded UI click (Kenney "UI Audio", CC0), the crisp single
-// tick of an old browser.
+// Button click: a recorded mouse click, press and release ("Mouse Click" by voicebosch
+// on Pixabay, trimmed to the clicks).
 export const CLICK_SOUND = 'assets/sounds/click.wav';
 let clickBuf = null;
 let clickLoading = false;
@@ -133,7 +133,7 @@ export function click() {
   if (!clickBuf) { loadClick(); return; }
   const src = ac.createBufferSource(), g = ac.createGain();
   src.buffer = clickBuf;
-  g.gain.value = 0.7;
+  g.gain.value = 1;
   src.connect(g).connect(master);
   src.start();
 }
