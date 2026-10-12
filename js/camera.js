@@ -72,6 +72,7 @@ export function unlockAudio() {
       master.connect(comp).connect(ac.destination);
     }
     if (ac.state === 'suspended') ac.resume();
+    loadClick();
   } catch { ac = null; }
 }
 const ready = () => ac && ac.state === 'running';
@@ -112,26 +113,29 @@ function thump(t, from, to, vol, dur) {
   o.start(t); o.stop(t + dur + 0.02);
 }
 
-// The old-browser "navigation" click, a two-part "tick-um": a bright tick, then a
-// softer, lower "um" that rounds off just after it.
+// Button click: a real recorded UI click (Kenney "UI Audio", CC0), the crisp single
+// tick of an old browser. CLICK_SOUND picks which of the bundled clicks is used.
+export const CLICK_SOUND = 'assets/sounds/click-1.wav';
+let clickBuf = null;
+let clickLoading = false;
+function loadClick() {
+  if (clickBuf || clickLoading || !ac) return;
+  clickLoading = true;
+  fetch(CLICK_SOUND)
+    .then((r) => r.arrayBuffer())
+    .then((data) => new Promise((resolve, reject) => ac.decodeAudioData(data, resolve, reject)))
+    .then((buf) => { clickBuf = buf; })
+    .catch(() => { clickLoading = false; });
+}
+
 export function click() {
   if (!ready()) return;
-  const t = ac.currentTime + 0.001;
-  // tick
-  tick(t, 5500, 1.5, 0.008, 1.2);
-  tick(t, 2400, 1.9, 0.012, 3);
-  // um
-  const u = t + 0.022;
-  const o = ac.createOscillator(), g = ac.createGain();
-  o.type = 'triangle';
-  o.frequency.setValueAtTime(560, u);
-  o.frequency.exponentialRampToValueAtTime(360, u + 0.09);
-  g.gain.setValueAtTime(0.0001, u);
-  g.gain.exponentialRampToValueAtTime(0.27, u + 0.007);
-  g.gain.exponentialRampToValueAtTime(0.0001, u + 0.1);
-  o.connect(g).connect(master);
-  o.start(u); o.stop(u + 0.12);
-  tick(u, 700, 1.5, 0.06, 5);
+  if (!clickBuf) { loadClick(); return; }
+  const src = ac.createBufferSource(), g = ac.createGain();
+  src.buffer = clickBuf;
+  g.gain.value = 0.7;
+  src.connect(g).connect(master);
+  src.start();
 }
 
 // A round digicam beep: soft attack, a quiet octave on top, gentle tail.
