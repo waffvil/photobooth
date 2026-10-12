@@ -114,8 +114,8 @@ function thump(t, from, to, vol, dur) {
 }
 
 // Button click: a real recorded UI click (Kenney "UI Audio", CC0), the crisp single
-// tick of an old browser. CLICK_SOUND picks which of the bundled clicks is used.
-export const CLICK_SOUND = 'assets/sounds/click-1.wav';
+// tick of an old browser.
+export const CLICK_SOUND = 'assets/sounds/click.wav';
 let clickBuf = null;
 let clickLoading = false;
 function loadClick() {

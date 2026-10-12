@@ -74,8 +74,8 @@ this app (`assets/devices/`), and each keeps its own licence:
 | [Motorola RAZR V3 (white)](https://commons.wikimedia.org/wiki/File:Motorola_Razr_V3_montage_closed_open.png) | Raimond Spekking | CC BY-SA 4.0 |
 | [Nokia 2760](https://commons.wikimedia.org/wiki/File:Nokia_2760_open.png) | AnVuong1222004 | CC BY-SA 4.0 |
 
-The button click sounds (`assets/sounds/`) are from Kenney's [UI Audio](https://kenney.nl/assets/ui-audio)
-and [Interface Sounds](https://kenney.nl/assets/interface-sounds) packs, CC0. The other sounds are
+The button click (`assets/sounds/click.wav`) is from Kenney's [UI Audio](https://kenney.nl/assets/ui-audio)
+pack, CC0. The other sounds are
 synthesised in the browser.
 
 Brand names and logos on the devices belong to their owners. This project isn't
