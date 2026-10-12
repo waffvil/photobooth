@@ -444,7 +444,6 @@ body.y2k .dialog { color: var(--ink); }
 .dc-devs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; width: calc(100% + var(--gutter) * 2); margin: 0 calc(var(--gutter) * -1) 4px; padding: 4px var(--gutter); scroll-snap-type: x proximity; }
 .dc-devs::-webkit-scrollbar { display: none; }
 .dc-dev { flex: 0 0 84px; scroll-snap-align: center; position: relative; }
-.real-tag { position: absolute; top: 4px; right: 4px; font-style: normal; font-family: var(--pixel); font-size: 8px; background: #C6FF4D; color: #17181C; padding: 1px 4px; border-radius: 3px; }
 .device-chip { position: relative; }
 .dc-row-label { font-family: var(--pixel); font-size: 10px; color: rgba(255, 255, 255, .6); margin: 18px 0 2px; }
 .credit { font-size: 11px; color: rgba(255, 255, 255, .55); margin: 14px 0 0; line-height: 1.5; }
@@ -649,7 +648,6 @@ body.y2k .dc-ed.on, body.y2k .colour-chip.is-selected, body.y2k .filter-card.is-
 body.y2k .dc-ed.on .swatch-dot, body.y2k .colour-chip.is-selected .swatch-dot { outline: 2px solid var(--fz-ink); }
 body.y2k .filter-card.is-selected canvas, body.y2k .frame-chip.is-selected canvas { border-color: var(--fz-ink); box-shadow: 4px 4px 0 var(--fz-pink); }
 body.y2k .filter-card canvas { border-radius: 0; }
-.real-tag { background: var(--fz-neon); color: var(--fz-ink); font-family: var(--narrow); font-weight: 700; font-size: 9px; border: 1px solid var(--fz-ink); border-radius: 0; }
 
 /* the shot tray (on purple) */
 body.y2k .dc-cut { border: 1.5px dashed rgba(255, 255, 255, .6); color: rgba(255, 255, 255, .7); background: transparent; border-radius: 0; font-family: var(--narrow); }

@@ -4,7 +4,7 @@
 import { Y2K_FILTERS, filterById } from './filters.js';
 import { drawStamp } from './render.js';
 import { LAYOUTS } from './layouts.js';
-import { DEVICES, DEVICE_ORDER, TINTS, CHARMS, drawDevice, drawScreenHud, loadDeviceImages, isReal } from './devices.js';
+import { DEVICES, DEVICE_ORDER, TINTS, CHARMS, drawDevice, drawScreenHud, loadDeviceImages } from './devices.js';
 import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
 
 export const EDITIONS = [
@@ -52,7 +52,6 @@ export function digicamScene(ctx) {
     let alive = true;
     let busy = false;
     let camReady = false;
-    let ed = editionById(S.edition);
     if (![0, 3, 5].includes(S.dcTimer)) S.dcTimer = 0;
 
     const hd = header({ step: 'shoot', title: '', sub: '' });
@@ -73,11 +72,9 @@ export function digicamScene(ctx) {
     // --- pickers ------------------------------------------------------------------
     const devBtns = DEVICE_ORDER.map((id) => h('button.dc-dev', { 'aria-label': DEVICES[id].name, onclick: () => setDevice(id) }));
     const devRow = h('div.dc-devs', {}, devBtns);
-    const edChips = EDITIONS.map((e) => h('button.dc-ed', { 'aria-label': `${e.name} colour`, onclick: () => setEdition(e.id) },
-      [h(`span.swatch-dot.skin-${e.id}`), h('span', { text: e.name })]));
     const tintChips = TINTS.map((t) => h('button.dc-ed', { 'aria-label': `${t.name} colour`, onclick: () => setTint(t.id) },
       [h(`span.swatch-dot.tint-${t.id}`), h('span', { text: t.name })]));
-    const edRow = h('div.dc-eds');
+    const edRow = h('div.dc-eds', {}, tintChips);
     const charmChips = CHARMS.map((c) => h('button.charm-chip', { 'aria-label': c === 'none' ? 'No charm' : `${c} charm`, onclick: () => setCharm(c) }, c === 'none' ? h('span.none', { text: '∅' }) : c));
     const charmRow = h('div.dc-charms', {}, charmChips);
     const fChips = Y2K_FILTERS.map((f) => h('button.dc-chip', { text: f.name, onclick: () => setFilter(f.id) }));
@@ -143,17 +140,12 @@ export function digicamScene(ctx) {
       devBtns.forEach((b, i) => {
         const id = DEVICE_ORDER[i];
         const { canvas } = deviceCanvas(id, S.edition, 64, 56, { tint: S.tint });
-        b.replaceChildren(h('span.dc-dev-art', {}, canvas), h('span', { text: DEVICES[id].name }), isReal(id) ? h('em.real-tag', { text: 'REAL' }) : null);
+        b.replaceChildren(h('span.dc-dev-art', {}, canvas), h('span', { text: DEVICES[id].name }));
       });
     }
 
     function paint() {
       devBtns.forEach((b, i) => b.classList.toggle('on', DEVICE_ORDER[i] === S.device));
-      // real devices are recoloured with tints; drawn ones wear the body finishes
-      const real = isReal(S.device);
-      const chips = real ? tintChips : edChips;
-      if (edRow.firstChild !== chips[0]) edRow.replaceChildren(...chips);
-      edChips.forEach((c, i) => c.classList.toggle('on', EDITIONS[i].id === ed.id));
       tintChips.forEach((c, i) => c.classList.toggle('on', TINTS[i].id === S.tint));
       charmChips.forEach((c, i) => c.classList.toggle('on', CHARMS[i] === S.charm));
       fChips.forEach((c, i) => c.classList.toggle('on', Y2K_FILTERS[i].id === S.filter));
@@ -175,7 +167,6 @@ export function digicamScene(ctx) {
       hint.hidden = !S.shots.length;
       settings.classList.toggle('locked', busy);
       snapBtn.disabled = busy || !camReady;
-      document.body.style.setProperty('--y2k-bg', ed.page);
       drawHud();
     }
 
@@ -183,12 +174,6 @@ export function digicamScene(ctx) {
       if (busy) return;
       S.device = id; syncLayout(); savePrefs();
       drawStage(); paint();
-    }
-    function setEdition(id) {
-      ed = editionById(id);
-      S.edition = id; S.frame = ed.frame; S.filter = ed.filter; S.caption = ed.caption;
-      savePrefs();
-      drawStage(); drawDeviceButtons(); paint();
     }
     function setFilter(id) { S.filter = id; paint(); }
     function setTint(id) { S.tint = id; savePrefs(); drawStage(); drawDeviceButtons(); paint(); }

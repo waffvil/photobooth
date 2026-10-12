@@ -3,7 +3,7 @@ import { FRAMES, PACKS, frameById, paintFrame } from './frames.js';
 import { FILTERS, Y2K_FILTERS } from './filters.js';
 import { renderStrip, drawStroke, drawStamp, fit, forgetShots, photoFor, CAPTION_FONT, MONO_FONT, EMOJI_FONT, PIXEL_FONT, LCD_FONT } from './render.js';
 import { digicamScene, EDITIONS, editionById, deviceCanvas } from './digicam.js';
-import { DEVICES, DEVICE_ORDER, TINTS, CHARMS, BACKDROPS, loadDeviceImages, isReal } from './devices.js';
+import { DEVICES, DEVICE_ORDER, TINTS, CHARMS, BACKDROPS, loadDeviceImages } from './devices.js';
 import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
 
 // ---------------------------------------------------------------------------
@@ -172,7 +172,6 @@ function go(scene) {
   app.dataset.scene = scene;
   document.body.dataset.scene = scene;
   document.body.classList.toggle('y2k', S.mode === 'digicam' && scene !== 'start');
-  if (S.mode === 'digicam') document.body.style.setProperty('--y2k-bg', editionById(S.edition).page);
   window.scrollTo(0, 0);
   cleanup = SCENES[scene]() || null;
   if (scene !== 'start' && !history.state?.pb) history.pushState({ pb: 1 }, '');
@@ -659,25 +658,18 @@ SCENES.style = () => {
       kids.push(h('p.side-label', { text: 'Device' }));
       kids.push(h('div.filter-row.device-row', {}, DEVICE_ORDER.map((id) => {
         const { canvas } = deviceCanvas(id, S.edition, 70, 60, { tint: S.tint });
-        const b = h('button.device-chip', { onclick: () => { S.device = id; syncLayout(); savePrefs(); build(); } }, [h('span.device-art', {}, canvas), h('span', { text: DEVICES[id].name }), isReal(id) ? h('em.real-tag', { text: 'REAL' }) : null]);
+        const b = h('button.device-chip', { onclick: () => { S.device = id; syncLayout(); savePrefs(); build(); } }, [h('span.device-art', {}, canvas), h('span', { text: DEVICES[id].name })]);
         b._on = () => S.device === id;
         sel.push(b);
         return b;
       })));
       kids.push(h('p.side-label', { text: 'Colour' }));
-      kids.push(h('div.filter-row', {}, isReal(S.device)
-        ? TINTS.map((t) => {
-          const b = h('button.colour-chip', { onclick: () => { S.tint = t.id; savePrefs(); build(); } }, [h(`span.swatch-dot.tint-${t.id}`), h('span', { text: t.name })]);
-          b._on = () => S.tint === t.id;
-          sel.push(b);
-          return b;
-        })
-        : EDITIONS.map((e) => {
-          const b = h('button.colour-chip', { onclick: () => { S.edition = e.id; savePrefs(); build(); } }, [h(`span.swatch-dot.skin-${e.id}`), h('span', { text: e.name })]);
-          b._on = () => S.edition === e.id;
-          sel.push(b);
-          return b;
-        })));
+      kids.push(h('div.filter-row', {}, TINTS.map((t) => {
+        const b = h('button.colour-chip', { onclick: () => { S.tint = t.id; savePrefs(); build(); } }, [h(`span.swatch-dot.tint-${t.id}`), h('span', { text: t.name })]);
+        b._on = () => S.tint === t.id;
+        sel.push(b);
+        return b;
+      })));
       kids.push(h('p.side-label', { text: 'Phone charm' }));
       kids.push(h('div.dc-charms', {}, CHARMS.map((c) => {
         const b = h('button.charm-chip', { 'aria-label': c === 'none' ? 'No charm' : `${c} charm`, onclick: () => { S.charm = c; savePrefs(); update(); } }, c === 'none' ? h('span.none', { text: '∅' }) : c);

@@ -20,9 +20,9 @@ A free online photobooth that runs in your browser. Take photos with your camera
 
 Inspired by freqznow.site. Pick a device and you see yourself live on its screen:
 
-- **Real devices** (photos of the actual hardware): Canon IXUS 70, Sony Cyber-shot T33,
-  Motorola RAZR V3 (silver and white), Nokia 2760 flip.
-- **Drawn devices** in six body colours: digicam, slim cam, flip phone, candybar phone.
+Canon IXUS 70, Sony Cyber-shot T33, Motorola RAZR V3 (silver and white) and Nokia 2760
+flip, all photos of the real hardware. Recolour them (pink, lilac, baby blue, mint, butter,
+black…), hang a charm on a beaded strap, and pick a background for the saved photo.
 
 Pick a digicam look (2000, GLOW, BNW, CCD, FLASH, BASIC) and snap each cut by hand (1 to 4
 cuts, optional self-timer). Each photo comes out *on the device*, with its screen overlay
@@ -56,7 +56,7 @@ js/filters.js     filters as pixel math (same result on iOS Safari)
 js/render.js      the one renderer behind every preview and the export
 js/camera.js      camera, uploads and sounds
 js/digicam.js     the Y2K digicam mode (device picker, live screen, snap)
-js/devices.js     drawn devices + the real-device photos and their screens
+js/devices.js     the device photos, their screens, colours and charms
 ```
 
 Inspired by the photobooth at getangie.com.
