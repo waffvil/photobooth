@@ -75,9 +75,9 @@ const S = {
   device: DEVICES[prefs.device] ? prefs.device : 'ixus',
   format: prefs.format === 'strip' ? 'strip' : 'device',   // digicam output: photo on the device, or a strip
   hud: true,
-  tint: TINTS.some((t) => t.id === prefs.tint) ? prefs.tint : 'pink',
+  tint: TINTS.some((t) => t.id === prefs.tint) ? prefs.tint : 'original',
   charm: CHARMS.includes(prefs.charm) ? prefs.charm : '🍓',
-  bg: BACKDROPS.includes(prefs.bg) ? prefs.bg : 'picnic',
+  bg: BACKDROPS.includes(prefs.bg) ? prefs.bg : 'soft',
   cut: 0,      // which cut a device-format screen is showing
   decos: [],   // device format: one decoration set per cut
   boothSetup: null,
@@ -170,6 +170,7 @@ function go(scene) {
   S.scene = scene;
   app.replaceChildren();
   app.dataset.scene = scene;
+  document.body.dataset.scene = scene;
   document.body.classList.toggle('y2k', S.mode === 'digicam' && scene !== 'start');
   if (S.mode === 'digicam') document.body.style.setProperty('--y2k-bg', editionById(S.edition).page);
   window.scrollTo(0, 0);

@@ -99,12 +99,12 @@ export function digicamScene(ctx) {
     ctx.app.append(h('main.scene.dc', {}, [
       hd.root,
       h('h1.dc-logo', {}, [h('span.spark.s1', { text: '✦' }), h('span', { text: 'digicam' }), h('span.spark.s2', { text: '♡' })]),
-      win(h, 'pick_a_device.exe', [devRow]),
+      win(h, 'Choose Digital Camera', [devRow]),
       h('div.dc-stage-wrap', {}, [h('span.spark.s3', { text: '✧' }), stage, h('span.spark.s4', { text: '★' })]),
       h('div.dc-controls', {}, [uploadBtn, snapBtn, flipBtn]),
       tray,
       hint,
-      win(h, 'customise ♡', [
+      win(h, 'Make it yours', [
         h('p.dc-row-label', { text: 'colour' }), edRow,
         h('p.dc-row-label', { text: 'phone charm' }), charmRow,
         h('p.dc-row-label', { text: 'look' }), h('div.dc-chips', {}, fChips),
