@@ -1,9 +1,9 @@
 import { LAYOUTS, LAYOUT_ORDER, slotAspect } from './layouts.js';
-import { FRAMES, PACKS, frameById } from './frames.js';
+import { FRAMES, PACKS, frameById, paintFrame } from './frames.js';
 import { FILTERS, Y2K_FILTERS } from './filters.js';
 import { renderStrip, drawStroke, drawStamp, fit, forgetShots, photoFor, CAPTION_FONT, MONO_FONT, EMOJI_FONT, PIXEL_FONT, LCD_FONT } from './render.js';
 import { digicamScene, EDITIONS, editionById, deviceCanvas } from './digicam.js';
-import { DEVICES, DEVICE_ORDER, loadDeviceImages, isReal } from './devices.js';
+import { DEVICES, DEVICE_ORDER, TINTS, CHARMS, BACKDROPS, loadDeviceImages, isReal } from './devices.js';
 import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
 
 // ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ function loadPrefs() {
 function savePrefs() {
   // digicam mode borrows layout/frame/caption; the booth's own choices are kept aside
   const b = S.mode === 'digicam' ? S.boothSetup : S;
-  const out = { layout: b.layout, frame: b.frame, caption: b.caption, pack: S.pack, timer: S.timer, showDate: S.showDate, edition: S.edition, cuts: S.cuts, device: S.device, format: S.format };
+  const out = { layout: b.layout, frame: b.frame, caption: b.caption, pack: S.pack, timer: S.timer, showDate: S.showDate, edition: S.edition, cuts: S.cuts, device: S.device, format: S.format, tint: S.tint, charm: S.charm, bg: S.bg };
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(out)); } catch { /* private mode */ }
 }
 
@@ -75,6 +75,9 @@ const S = {
   device: DEVICES[prefs.device] ? prefs.device : 'ixus',
   format: prefs.format === 'strip' ? 'strip' : 'device',   // digicam output: photo on the device, or a strip
   hud: true,
+  tint: TINTS.some((t) => t.id === prefs.tint) ? prefs.tint : 'pink',
+  charm: CHARMS.includes(prefs.charm) ? prefs.charm : '🍓',
+  bg: BACKDROPS.includes(prefs.bg) ? prefs.bg : 'picnic',
   cut: 0,      // which cut a device-format screen is showing
   decos: [],   // device format: one decoration set per cut
   boothSetup: null,
@@ -90,7 +93,7 @@ const photos = () => (deviceFormat() ? [S.shots[S.cut] || null] : S.slots.map((i
 const stripOpts = (extra = {}) => ({
   layout: S.layout, frame: S.frame, photos: photos(), filter: S.filter,
   caption: S.caption, showDate: S.showDate, stamp: S.stamp,
-  skin: S.edition, hud: S.hud, index: S.cut, total: S.shots.length, ...extra,
+  skin: S.edition, hud: S.hud, index: S.cut, total: S.shots.length, tint: S.tint, charm: S.charm, bg: S.bg, ...extra,
 });
 
 // The layout follows the mode: the booth's own pick, a digicam strip, or a device.
@@ -654,16 +657,45 @@ SCENES.style = () => {
       }
       kids.push(h('p.side-label', { text: 'Device' }));
       kids.push(h('div.filter-row.device-row', {}, DEVICE_ORDER.map((id) => {
-        const { canvas } = deviceCanvas(id, S.edition, 70, 60);
+        const { canvas } = deviceCanvas(id, S.edition, 70, 60, { tint: S.tint });
         const b = h('button.device-chip', { onclick: () => { S.device = id; syncLayout(); savePrefs(); build(); } }, [h('span.device-art', {}, canvas), h('span', { text: DEVICES[id].name }), isReal(id) ? h('em.real-tag', { text: 'REAL' }) : null]);
         b._on = () => S.device === id;
         sel.push(b);
         return b;
       })));
-      kids.push(h('p.side-label', { text: isReal(S.device) ? 'Background' : 'Colour' }));
-      kids.push(h('div.filter-row', {}, EDITIONS.map((e) => {
-        const b = h('button.colour-chip', { onclick: () => { S.edition = e.id; savePrefs(); build(); } }, [h(`span.swatch-dot.skin-${e.id}`), h('span', { text: e.name })]);
-        b._on = () => S.edition === e.id;
+      kids.push(h('p.side-label', { text: 'Colour' }));
+      kids.push(h('div.filter-row', {}, isReal(S.device)
+        ? TINTS.map((t) => {
+          const b = h('button.colour-chip', { onclick: () => { S.tint = t.id; savePrefs(); build(); } }, [h(`span.swatch-dot.tint-${t.id}`), h('span', { text: t.name })]);
+          b._on = () => S.tint === t.id;
+          sel.push(b);
+          return b;
+        })
+        : EDITIONS.map((e) => {
+          const b = h('button.colour-chip', { onclick: () => { S.edition = e.id; savePrefs(); build(); } }, [h(`span.swatch-dot.skin-${e.id}`), h('span', { text: e.name })]);
+          b._on = () => S.edition === e.id;
+          sel.push(b);
+          return b;
+        })));
+      kids.push(h('p.side-label', { text: 'Phone charm' }));
+      kids.push(h('div.dc-charms', {}, CHARMS.map((c) => {
+        const b = h('button.charm-chip', { 'aria-label': c === 'none' ? 'No charm' : `${c} charm`, onclick: () => { S.charm = c; savePrefs(); update(); } }, c === 'none' ? h('span.none', { text: '∅' }) : c);
+        b._on = () => S.charm === c;
+        sel.push(b);
+        return b;
+      })));
+      kids.push(h('p.side-label', { text: 'Background' }));
+      kids.push(h('div.filter-row', {}, BACKDROPS.map((id) => {
+        const c = document.createElement('canvas');
+        c.width = c.height = 96;
+        const g = c.getContext('2d');
+        if (id === 'soft') {
+          const gr = g.createLinearGradient(0, 0, 96, 96);
+          gr.addColorStop(0, '#FFD1E6'); gr.addColorStop(1, '#C9B6FF');
+          g.fillStyle = gr; g.fillRect(0, 0, 96, 96);
+        } else renderBackdropSwatch(g, id);
+        const b = h('button.bg-chip', { 'aria-label': `${id} background`, onclick: () => { S.bg = id; savePrefs(); update(); } }, [c, h('span', { text: id === 'soft' ? 'soft' : frameById(id).name })]);
+        b._on = () => S.bg === id;
         sel.push(b);
         return b;
       })));
@@ -1036,6 +1068,10 @@ function doneStrip() {
   }
 
   return () => { if (url) setTimeout(() => URL.revokeObjectURL(url), 1000); };
+}
+
+function renderBackdropSwatch(g, id) {
+  paintFrame(g, frameById(id), 96, 96, 0.22, 1);
 }
 
 // The photo credit a real device's licence asks for.

@@ -186,7 +186,7 @@ export function drawStamp(ctx, x, y, w, h, date) {
 
 // A device: body, the photo on its screen, the screen's own overlay, glass glare.
 function renderDevice(L, opts, scale, canvas, ctx) {
-  drawDevice(ctx, L.device, opts.skin, scale, { backdrop: opts.backdrop !== false });
+  drawDevice(ctx, L.device, opts.skin, scale, { backdrop: opts.bg || 'soft', tint: opts.tint, charm: opts.charm });
   const sl = L.slots[0];
   const x = Math.round(sl.x * scale), y = Math.round(sl.y * scale);
   const w = Math.round((sl.x + sl.w) * scale) - x, h = Math.round((sl.y + sl.h) * scale) - y;

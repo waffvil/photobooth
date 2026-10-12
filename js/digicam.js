@@ -4,7 +4,7 @@
 import { Y2K_FILTERS, filterById } from './filters.js';
 import { drawStamp } from './render.js';
 import { LAYOUTS } from './layouts.js';
-import { DEVICES, DEVICE_ORDER, drawDevice, drawScreenHud, loadDeviceImages, isReal } from './devices.js';
+import { DEVICES, DEVICE_ORDER, TINTS, CHARMS, drawDevice, drawScreenHud, loadDeviceImages, isReal } from './devices.js';
 import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
 
 export const EDITIONS = [
@@ -29,14 +29,19 @@ const ICONS = {
 
 // A device drawn into a canvas element at a CSS size (no backdrop), for pickers and
 // the live camera. Returns the canvas and the CSS scale it was drawn at.
-export function deviceCanvas(deviceId, skinId, maxW, maxH) {
+// A little retro "window" with a title bar, for grouping controls.
+export function win(h, title, kids) {
+  return h('section.win', {}, [h('div.win-bar', {}, [h('span', { text: title }), h('span.win-btns', {}, [h('i'), h('i'), h('i')])]), h('div.win-body', {}, kids)]);
+}
+
+export function deviceCanvas(deviceId, skinId, maxW, maxH, extra = {}) {
   const L = LAYOUTS[`dev-${deviceId}`];
   const k = Math.min(maxW / L.W, maxH / L.H);
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
   const c = document.createElement('canvas');
   c.width = Math.round(L.W * k * dpr); c.height = Math.round(L.H * k * dpr);
   c.style.width = `${L.W * k}px`; c.style.height = `${L.H * k}px`;
-  drawDevice(c.getContext('2d'), deviceId, skinId, k * dpr, { backdrop: false });
+  drawDevice(c.getContext('2d'), deviceId, skinId, k * dpr, { backdrop: false, ...extra });
   return { canvas: c, k, L };
 }
 
@@ -70,8 +75,11 @@ export function digicamScene(ctx) {
     const devRow = h('div.dc-devs', {}, devBtns);
     const edChips = EDITIONS.map((e) => h('button.dc-ed', { 'aria-label': `${e.name} colour`, onclick: () => setEdition(e.id) },
       [h(`span.swatch-dot.skin-${e.id}`), h('span', { text: e.name })]));
-    const edRow = h('div.dc-eds', {}, edChips);
-    const edLabel = h('p.dc-row-label');
+    const tintChips = TINTS.map((t) => h('button.dc-ed', { 'aria-label': `${t.name} colour`, onclick: () => setTint(t.id) },
+      [h(`span.swatch-dot.tint-${t.id}`), h('span', { text: t.name })]));
+    const edRow = h('div.dc-eds');
+    const charmChips = CHARMS.map((c) => h('button.charm-chip', { 'aria-label': c === 'none' ? 'No charm' : `${c} charm`, onclick: () => setCharm(c) }, c === 'none' ? h('span.none', { text: '∅' }) : c));
+    const charmRow = h('div.dc-charms', {}, charmChips);
     const fChips = Y2K_FILTERS.map((f) => h('button.dc-chip', { text: f.name, onclick: () => setFilter(f.id) }));
 
     // --- controls -----------------------------------------------------------------
@@ -90,16 +98,18 @@ export function digicamScene(ctx) {
 
     ctx.app.append(h('main.scene.dc', {}, [
       hd.root,
-      h('h1.dc-logo', {}, [h('span', { text: 'digicam' }), h('sup', { text: '✦' })]),
-      devRow,
-      stage,
+      h('h1.dc-logo', {}, [h('span.spark.s1', { text: '✦' }), h('span', { text: 'digicam' }), h('span.spark.s2', { text: '♡' })]),
+      win(h, 'pick_a_device.exe', [devRow]),
+      h('div.dc-stage-wrap', {}, [h('span.spark.s3', { text: '✧' }), stage, h('span.spark.s4', { text: '★' })]),
       h('div.dc-controls', {}, [uploadBtn, snapBtn, flipBtn]),
       tray,
       hint,
-      edLabel,
-      edRow,
-      h('div.dc-chips', {}, fChips),
-      settings,
+      win(h, 'customise ♡', [
+        h('p.dc-row-label', { text: 'colour' }), edRow,
+        h('p.dc-row-label', { text: 'phone charm' }), charmRow,
+        h('p.dc-row-label', { text: 'look' }), h('div.dc-chips', {}, fChips),
+        settings,
+      ]),
       fileInput,
     ]));
 
@@ -109,7 +119,7 @@ export function digicamScene(ctx) {
       const maxW = Math.min(stage.clientWidth || window.innerWidth - 32, 460);
       const portrait = DEVICES[S.device].kind === 'phone';
       const maxH = portrait ? Math.min(window.innerHeight * 0.5, 500) : 320;
-      const { canvas, k, L } = deviceCanvas(S.device, S.edition, maxW, maxH);
+      const { canvas, k, L } = deviceCanvas(S.device, S.edition, maxW, maxH, { tint: S.tint, charm: S.charm });
       const sl = L.slots[0];
       screenBox = { w: sl.w * k, h: sl.h * k };
       Object.assign(screen.style, { left: `${sl.x * k}px`, top: `${sl.y * k}px`, width: `${screenBox.w}px`, height: `${screenBox.h}px` });
@@ -132,15 +142,20 @@ export function digicamScene(ctx) {
     function drawDeviceButtons() {
       devBtns.forEach((b, i) => {
         const id = DEVICE_ORDER[i];
-        const { canvas } = deviceCanvas(id, S.edition, 64, 56);
+        const { canvas } = deviceCanvas(id, S.edition, 64, 56, { tint: S.tint });
         b.replaceChildren(h('span.dc-dev-art', {}, canvas), h('span', { text: DEVICES[id].name }), isReal(id) ? h('em.real-tag', { text: 'REAL' }) : null);
       });
     }
 
     function paint() {
       devBtns.forEach((b, i) => b.classList.toggle('on', DEVICE_ORDER[i] === S.device));
+      // real devices are recoloured with tints; drawn ones wear the body finishes
+      const real = isReal(S.device);
+      const chips = real ? tintChips : edChips;
+      if (edRow.firstChild !== chips[0]) edRow.replaceChildren(...chips);
       edChips.forEach((c, i) => c.classList.toggle('on', EDITIONS[i].id === ed.id));
-      edLabel.textContent = isReal(S.device) ? 'BACKGROUND' : 'BODY COLOUR';
+      tintChips.forEach((c, i) => c.classList.toggle('on', TINTS[i].id === S.tint));
+      charmChips.forEach((c, i) => c.classList.toggle('on', CHARMS[i] === S.charm));
       fChips.forEach((c, i) => c.classList.toggle('on', Y2K_FILTERS[i].id === S.filter));
       cutSegs.forEach((c, i) => c.classList.toggle('on', i + 1 === S.cuts));
       timerSegs.forEach((c, i) => c.classList.toggle('on', [0, 3, 5][i] === S.dcTimer));
@@ -176,6 +191,8 @@ export function digicamScene(ctx) {
       drawStage(); drawDeviceButtons(); paint();
     }
     function setFilter(id) { S.filter = id; paint(); }
+    function setTint(id) { S.tint = id; savePrefs(); drawStage(); drawDeviceButtons(); paint(); }
+    function setCharm(c) { S.charm = c; savePrefs(); drawStage(); paint(); }
     function setCuts(n) {
       if (busy) return;
       S.cuts = n;
