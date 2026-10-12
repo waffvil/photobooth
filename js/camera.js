@@ -55,36 +55,103 @@ export async function fileToCanvas(file) {
 }
 
 // --- sound -------------------------------------------------------------------
+// Everything is synthesised with Web Audio: no sound files to load or license.
 let ac = null;
+let master = null;
+let noiseBuf = null;
+
 export function unlockAudio() {
   try {
-    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (!ac) {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain();
+      master.gain.value = 0.9;
+      // a touch of compression keeps the clicks crisp without clipping
+      const comp = ac.createDynamicsCompressor();
+      comp.threshold.value = -18; comp.ratio.value = 4;
+      master.connect(comp).connect(ac.destination);
+    }
     if (ac.state === 'suspended') ac.resume();
   } catch { ac = null; }
 }
+const ready = () => ac && ac.state === 'running';
 
-export function beep(freq = 880, dur = 0.08, vol = 0.15) {
-  if (!ac) return;
-  const o = ac.createOscillator(), g = ac.createGain();
-  o.frequency.value = freq;
-  o.type = 'sine';
-  g.gain.setValueAtTime(vol, ac.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
-  o.connect(g).connect(ac.destination);
-  o.start();
-  o.stop(ac.currentTime + dur);
+function noise() {
+  if (!noiseBuf) {
+    const len = Math.floor(ac.sampleRate * 0.5);
+    noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const src = ac.createBufferSource();
+  src.buffer = noiseBuf;
+  return src;
 }
 
+// One short filtered burst of noise: the building block of every click.
+function tick(t, freq, vol, dur, q = 1.2, type = 'bandpass') {
+  const src = noise(), f = ac.createBiquadFilter(), g = ac.createGain();
+  f.type = type; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.0015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(master);
+  src.start(t, Math.random() * 0.4);
+  src.stop(t + dur + 0.02);
+}
+
+function thump(t, from, to, vol, dur) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(from, t);
+  o.frequency.exponentialRampToValueAtTime(to, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+
+// A soft mouse click: press, then release.
+export function click() {
+  if (!ready()) return;
+  const t = ac.currentTime + 0.001;
+  tick(t, 4200, 1.6, 0.016, 1.1);
+  thump(t, 900, 300, 0.12, 0.02);
+  tick(t + 0.055, 3300, 0.8, 0.012, 1.1);
+}
+
+// A round digicam beep: soft attack, a quiet octave on top, gentle tail.
+export function beep(freq = 1318, dur = 0.12, vol = 0.22) {
+  if (!ready()) return;
+  const t = ac.currentTime + 0.001;
+  for (const [mult, v, type] of [[1, vol, 'sine'], [2, vol * 0.18, 'sine'], [1, vol * 0.12, 'triangle']]) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = freq * mult;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.008);
+    g.gain.setValueAtTime(v, t + dur * 0.55);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+}
+
+// The two quick high beeps a camera makes when focus locks.
+export function focusBeep() {
+  if (!ready()) return;
+  beep(2093, 0.06, 0.16);
+  setTimeout(() => beep(2093, 0.07, 0.16), 95);
+}
+
+// A mechanical shutter: "ka-chick", two clicks with a small body thump.
 export function shutter() {
-  if (!ac) return;
-  const len = Math.floor(ac.sampleRate * 0.12);
-  const buf = ac.createBuffer(1, len, ac.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
-  const src = ac.createBufferSource(), g = ac.createGain(), f = ac.createBiquadFilter();
-  f.type = 'highpass'; f.frequency.value = 1200;
-  g.gain.value = 0.35;
-  src.buffer = buf;
-  src.connect(f).connect(g).connect(ac.destination);
-  src.start();
+  if (!ready()) return;
+  const t = ac.currentTime + 0.001;
+  tick(t, 2600, 1.1, 0.035, 0.9);
+  tick(t, 6500, 0.35, 0.012, 0.7, 'highpass');
+  thump(t, 170, 60, 0.4, 0.07);
+  tick(t + 0.075, 1700, 1.2, 0.05, 0.8);
+  tick(t + 0.075, 5200, 0.4, 0.016, 0.7, 'highpass');
+  thump(t + 0.075, 140, 50, 0.35, 0.08);
 }

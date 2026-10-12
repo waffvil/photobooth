@@ -5,7 +5,7 @@ import { Y2K_FILTERS, filterById } from './filters.js';
 import { drawStamp } from './render.js';
 import { LAYOUTS } from './layouts.js';
 import { DEVICES, DEVICE_ORDER, TINTS, CHARMS, drawDevice, drawScreenHud, loadDeviceImages } from './devices.js';
-import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
+import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter, focusBeep } from './camera.js';
 
 export const EDITIONS = [
   { id: 'lace', name: 'Lace', frame: 'lace', filter: 'd2000', caption: 'lace edition',
@@ -231,11 +231,12 @@ export function digicamScene(ctx) {
         if (!alive) return;
         countdown.textContent = String(s);
         countdown.classList.remove('tick'); void countdown.offsetWidth; countdown.classList.add('tick');
-        beep(s === 1 ? 1320 : 990, 0.06, 0.12);
+        beep(s === 1 ? 1760 : 1318, s === 1 ? 0.18 : 0.12);
         await wait(1000);
       }
       if (!alive) return;
       countdown.textContent = '';
+      if (!S.dcTimer) { focusBeep(); await wait(200); if (!alive) return; }
       shutter();
       flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
       const shot = addShot(grabFrame(video, S.facing === 'user'));

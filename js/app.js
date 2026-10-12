@@ -4,7 +4,7 @@ import { FILTERS, Y2K_FILTERS } from './filters.js';
 import { renderStrip, drawStroke, drawStamp, fit, forgetShots, photoFor, CAPTION_FONT, MONO_FONT, EMOJI_FONT, PIXEL_FONT, LCD_FONT } from './render.js';
 import { digicamScene, EDITIONS, editionById, deviceCanvas } from './digicam.js';
 import { DEVICES, DEVICE_ORDER, TINTS, CHARMS, BACKDROPS, loadDeviceImages } from './devices.js';
-import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
+import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter, click } from './camera.js';
 
 // ---------------------------------------------------------------------------
 // tiny DOM helper: h('button.btn.primary', { onclick, text }, [children])
@@ -480,7 +480,7 @@ SCENES.shoot = () => {
         if (!alive) return;
         count.textContent = String(s);
         count.classList.remove('tick'); void count.offsetWidth; count.classList.add('tick');
-        beep(s === 1 ? 1180 : 880);
+        beep(s === 1 ? 1760 : 1318, s === 1 ? 0.18 : 0.12, 0.22);
         await wait(1000);
       }
       if (!alive) return;
@@ -1158,5 +1158,15 @@ function confetti() {
   document.body.append(box);
   setTimeout(() => box.remove(), 3800);
 }
+
+// A soft click on every button. Audio can only start inside a user gesture, so the
+// first tap unlocks it (and gets its click once it's running).
+document.addEventListener('pointerdown', (e) => {
+  const b = e.target.closest('button, .choice, label.toggle');
+  if (!b || b.disabled) return;
+  unlockAudio();
+  click();
+}, { passive: true, capture: true });
+document.addEventListener('touchend', unlockAudio, { passive: true });
 
 go('start');
