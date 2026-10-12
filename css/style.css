@@ -656,13 +656,13 @@ body.y2k .dc-hint { color: rgba(255, 255, 255, .75); font-family: var(--narrow);
 
 /* colours for the real devices */
 .tint-original { background: linear-gradient(135deg, #F4F5F7, #A9AEB8 50%, #E9EBEF); }
-.tint-pink { background: linear-gradient(135deg, #FFD1E6, #FF9CC8); }
-.tint-hotpink { background: linear-gradient(135deg, #FF8CC6, #FF3D9A); }
-.tint-lilac { background: linear-gradient(135deg, #E3D6FF, #B79BFF); }
-.tint-baby { background: linear-gradient(135deg, #D8ECFF, #8EC8FF); }
-.tint-mint { background: linear-gradient(135deg, #D9FFF1, #7FE3C0); }
-.tint-butter { background: linear-gradient(135deg, #FFF3C4, #FFD86B); }
-.tint-black { background: linear-gradient(135deg, #5A5A66, #1E1E25); }
+.tint-pink { background: linear-gradient(135deg, #F6E1E9, #E9B7CB); }
+.tint-rose { background: linear-gradient(135deg, #EFD0DC, #D99AB3); }
+.tint-lilac { background: linear-gradient(135deg, #ECE6F7, #C7B9E6); }
+.tint-baby { background: linear-gradient(135deg, #E6EEF8, #B5CDE8); }
+.tint-mint { background: linear-gradient(135deg, #E6F4EE, #B4DCCB); }
+.tint-butter { background: linear-gradient(135deg, #F7F1DC, #EADBA6); }
+.tint-black { background: linear-gradient(135deg, #7A7A84, #3A3A42); }
 body.y2k .swatch-dot { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .7), 0 0 0 1.5px var(--fz-ink); }
 
 /* charms + backgrounds */

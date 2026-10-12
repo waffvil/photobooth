@@ -85,39 +85,46 @@ for (const d of REAL) {
 // --- recolouring real devices -------------------------------------------------------------
 export const TINTS = [
   { id: 'original', name: 'Original' },
-  { id: 'pink', name: 'Pink', c: '#FF9CC8' },
-  { id: 'hotpink', name: 'Hot pink', c: '#FF3D9A' },
-  { id: 'lilac', name: 'Lilac', c: '#B79BFF' },
-  { id: 'baby', name: 'Baby blue', c: '#8EC8FF' },
-  { id: 'mint', name: 'Mint', c: '#7FE3C0' },
-  { id: 'butter', name: 'Butter', c: '#FFD86B' },
-  { id: 'black', name: 'Black', c: '#2A2A33', dark: true },
+  { id: 'pink', name: 'Pink', c: '#E9B7CB' },
+  { id: 'rose', name: 'Rose', c: '#D99AB3' },
+  { id: 'lilac', name: 'Lilac', c: '#C7B9E6' },
+  { id: 'baby', name: 'Baby blue', c: '#B5CDE8' },
+  { id: 'mint', name: 'Mint', c: '#B4DCCB' },
+  { id: 'butter', name: 'Butter', c: '#EADBA6' },
+  { id: 'black', name: 'Graphite', c: '#3A3A42', dark: true },
 ];
+// How much of the colour goes on: a wash, so the real metal and plastic still read.
+const TINT_STRENGTH = 0.5;
 const tintCache = new Map();
-// The photo recoloured: hue/saturation from the tint, shading from the photo, alpha kept.
+// The photo recoloured: hue from the tint, shading from the photo, mixed back over the
+// original at TINT_STRENGTH, alpha kept.
 function tinted(id, tintId) {
   const img = images[id];
   const t = TINTS.find((x) => x.id === tintId);
   if (!img || !t || !t.c) return img;
   const key = `${id}|${tintId}`;
   if (tintCache.has(key)) return tintCache.get(key);
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const full = document.createElement('canvas');
+  full.width = w; full.height = h;
+  const f = full.getContext('2d');
+  f.drawImage(img, 0, 0);
+  if (t.dark) {
+    f.globalCompositeOperation = 'multiply';
+    f.fillStyle = '#8A8A94';
+    f.fillRect(0, 0, w, h);
+  }
+  f.globalCompositeOperation = 'color';
+  f.fillStyle = t.c;
+  f.fillRect(0, 0, w, h);
+
   const c = document.createElement('canvas');
-  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  c.width = w; c.height = h;
   const g = c.getContext('2d');
   g.drawImage(img, 0, 0);
-  if (t.dark) {
-    g.globalCompositeOperation = 'multiply';
-    g.fillStyle = '#5A5A66';
-    g.fillRect(0, 0, c.width, c.height);
-  }
-  g.globalCompositeOperation = 'color';
-  g.fillStyle = t.c;
-  g.fillRect(0, 0, c.width, c.height);
-  if (!t.dark) {
-    g.globalCompositeOperation = 'soft-light';
-    g.fillStyle = 'rgba(255,255,255,.35)';
-    g.fillRect(0, 0, c.width, c.height);
-  }
+  g.globalAlpha = TINT_STRENGTH;
+  g.drawImage(full, 0, 0);
+  g.globalAlpha = 1;
   g.globalCompositeOperation = 'destination-in';
   g.drawImage(img, 0, 0);
   tintCache.set(key, c);
