@@ -56,7 +56,19 @@ const polaroid = (() => {
   };
 })();
 
-export const LAYOUTS = { vertical, grid, duo, polaroid };
+// Digicam mode: 1–4 landscape "cuts" stacked, with a deep footer for the caption.
+function y2k(n) {
+  const W = 600, m = 36, gap = 22, slotH = 396, footer = 150;
+  const H = m + n * slotH + (n - 1) * gap + footer;
+  const g = column({ W, H, m, gap, n, slotH });
+  return {
+    id: `y2k${n}`, name: `${n} cut${n > 1 ? 's' : ''}`, hint: 'digicam',
+    W, H, ...g, shots: n, exportScale: 1.5,
+    caption: 34, date: 15,
+  };
+}
+
+export const LAYOUTS = { vertical, grid, duo, polaroid, y2k1: y2k(1), y2k2: y2k(2), y2k3: y2k(3), y2k4: y2k(4) };
 export const LAYOUT_ORDER = ['vertical', 'grid', 'duo', 'polaroid'];
 
 // Every slot in a layout shares one shape, so the camera preview can be cropped to it.

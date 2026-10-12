@@ -6,6 +6,8 @@ import { applyFilter } from './filters.js';
 
 export const CAPTION_FONT = '"Gowun Batang", Georgia, serif';
 export const MONO_FONT = '"Space Mono", ui-monospace, monospace';
+export const PIXEL_FONT = '"Silkscreen", "VT323", monospace';
+export const LCD_FONT = '"VT323", ui-monospace, monospace';
 export const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 
 const cropCache = new Map();
@@ -50,10 +52,21 @@ export function drawDeco(ctx, deco, W, H) {
     ctx.save();
     ctx.translate(st.x * W, st.y * H);
     ctx.rotate(st.rot || 0);
-    ctx.font = `${Math.round(st.size * W)}px ${EMOJI_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(st.emoji, 0, 0);
+    if (st.word) {
+      const px = Math.round(st.size * W * 0.62);
+      ctx.font = `${px}px ${PIXEL_FONT}`;
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = px * 0.3;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.strokeText(st.emoji, 0, 0);
+      ctx.fillStyle = st.color || '#FF3EA5';
+      ctx.fillText(st.emoji, 0, 0);
+    } else {
+      ctx.font = `${Math.round(st.size * W)}px ${EMOJI_FONT}`;
+      ctx.fillText(st.emoji, 0, 0);
+    }
     ctx.restore();
   }
 }
@@ -100,8 +113,10 @@ export function renderStrip(opts, scale = 1, canvas = document.createElement('ca
     const x = Math.round(sl.x * scale), y = Math.round(sl.y * scale);
     const w = Math.round((sl.x + sl.w) * scale) - x, h = Math.round((sl.y + sl.h) * scale) - y;
     const shot = opts.photos?.[i];
-    if (shot) ctx.drawImage(photoFor(shot, w, h, opts.filter || 'original'), x, y);
-    else { ctx.fillStyle = f.slotBg; ctx.fillRect(x, y, w, h); }
+    if (shot) {
+      ctx.drawImage(photoFor(shot, w, h, opts.filter || 'original'), x, y);
+      if (opts.stamp) drawStamp(ctx, x, y, w, h, opts.date);
+    } else { ctx.fillStyle = f.slotBg; ctx.fillRect(x, y, w, h); }
   });
 
   // footer: the caption, and the date under it
@@ -118,7 +133,7 @@ export function renderStrip(opts, scale = 1, canvas = document.createElement('ca
   // On a patterned paper the text gets a halo of the paper colour so it never
   // sits on top of a heart or a check.
   const halo = (text, x, y, px) => {
-    if (!f.draw) return;
+    if (!f.draw && !f.paint) return;
     ctx.save();
     ctx.strokeStyle = f.bg;
     ctx.lineJoin = 'round';
@@ -126,9 +141,11 @@ export function renderStrip(opts, scale = 1, canvas = document.createElement('ca
     ctx.strokeText(text, x, y);
     ctx.restore();
   };
+  const capFont = f.font || CAPTION_FONT;
+  const capWeight = f.font ? 400 : 700;
   if (caption) {
-    ctx.font = `700 ${capPx}px ${CAPTION_FONT}`;
-    fitText(ctx, caption, W * 0.86, capPx, `700 {px}px ${CAPTION_FONT}`);
+    ctx.font = `${capWeight} ${capPx}px ${capFont}`;
+    fitText(ctx, caption, W * 0.86, capPx, `${capWeight} {px}px ${capFont}`);
     halo(caption, W / 2, cy + capPx / 2, capPx);
     ctx.fillText(caption, W / 2, cy + capPx / 2);
     cy += capPx + gap;
@@ -144,6 +161,25 @@ export function renderStrip(opts, scale = 1, canvas = document.createElement('ca
 
   if (opts.deco) drawDeco(ctx, opts.deco, W, H);
   return canvas;
+}
+
+// The orange date imprint of an early-2000s digital camera, bottom-right of a photo.
+export function stampText(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `'${p(d.getFullYear() % 100)} ${p(d.getMonth() + 1)} ${p(d.getDate())}`;
+}
+
+export function drawStamp(ctx, x, y, w, h, date) {
+  const px = Math.max(8, h * 0.1);
+  ctx.save();
+  ctx.font = `${px}px ${LCD_FONT}`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#FF9A2E';
+  ctx.shadowColor = 'rgba(255,110,20,.9)';
+  ctx.shadowBlur = px * 0.35;
+  ctx.fillText(stampText(date), x + w - w * 0.045, y + h - h * 0.06);
+  ctx.restore();
 }
 
 // shrink the font until `text` fits `maxW`

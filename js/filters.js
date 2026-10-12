@@ -15,7 +15,24 @@ export const FILTERS = [
   { id: 'noir', name: 'Noir', p: { sat: 0, contrast: 1.45, brightness: -6, grain: 14, vignette: 0.3 } },
 ];
 
-export const filterById = (id) => FILTERS.find((f) => f.id === id) || FILTERS[0];
+// Digicam looks. `css` is the live-view approximation shown on the camera's LCD;
+// the pixel version below is what lands in the photo.
+export const Y2K_FILTERS = [
+  { id: 'd2000', name: '2000', css: 'saturate(1.25) contrast(1.12) brightness(1.08)',
+    p: { lofi: 0.6, sat: 1.22, contrast: 1.12, brightness: 10, warm: -4, tintR: 6, flash: 0.18, grain: 8 } },
+  { id: 'glow', name: 'GLOW', css: 'brightness(1.12) contrast(.92) saturate(1.1) blur(.5px)',
+    p: { bloom: 0.5, brightness: 12, contrast: 0.92, sat: 1.08, tintR: 10, tintB: 8, fade: 10 } },
+  { id: 'bnw', name: 'BNW', css: 'grayscale(1) contrast(1.35) brightness(1.05)',
+    p: { sat: 0, contrast: 1.35, brightness: 6, grain: 16, flash: 0.15 } },
+  { id: 'ccd', name: 'CCD', css: 'saturate(.9) hue-rotate(-10deg) contrast(1.05) blur(.4px)',
+    p: { lofi: 0.45, warm: -10, tintG: 6, sat: 0.9, contrast: 1.05, grain: 20 } },
+  { id: 'flash', name: 'FLASH', css: 'brightness(1.2) contrast(1.2) saturate(1.1)',
+    p: { flash: 0.45, brightness: 16, contrast: 1.18, sat: 1.1, vignette: 0.35 } },
+  { id: 'original', name: 'BASIC', css: 'none', p: {} },
+];
+
+const ALL = [...FILTERS, ...Y2K_FILTERS];
+export const filterById = (id) => ALL.find((f) => f.id === id) || FILTERS[0];
 
 const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
 
@@ -23,11 +40,20 @@ const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
 export function applyFilter(canvas, id, seed = 1) {
   const p = filterById(id).p;
   if (!Object.keys(p).length) return;
-  const { brightness = 0, contrast = 1, sat = 1, warm = 0, tintR = 0, tintB = 0,
-    fade = 0, sepia = 0, grain = 0, vignette = 0 } = p;
+  const { brightness = 0, contrast = 1, sat = 1, warm = 0, tintR = 0, tintG = 0, tintB = 0,
+    fade = 0, sepia = 0, grain = 0, vignette = 0, flash = 0, lofi = 0, bloom = 0 } = p;
 
   const w = canvas.width, h = canvas.height;
   const g = canvas.getContext('2d', { willReadFrequently: true });
+
+  // early-CCD softness: down and back up again (skipped on tiny thumbnails)
+  if (lofi && w >= 240) {
+    const t = document.createElement('canvas');
+    t.width = Math.max(1, Math.round(w * lofi)); t.height = Math.max(1, Math.round(h * lofi));
+    t.getContext('2d').drawImage(canvas, 0, 0, t.width, t.height);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(t, 0, 0, w, h);
+  }
   const img = g.getImageData(0, 0, w, h);
   const d = img.data;
 
@@ -57,12 +83,13 @@ export function applyFilter(canvas, id, seed = 1) {
         const sb = 0.272 * r + 0.534 * gg + 0.131 * b;
         r += (sr - r) * sepia; gg += (sg - gg) * sepia; b += (sb - b) * sepia;
       }
-      r += warm + tintR; b -= warm - tintB;
+      r += warm + tintR; gg += tintG; b -= warm - tintB;
 
       r = lut[clamp(r) | 0]; gg = lut[clamp(gg) | 0]; b = lut[clamp(b) | 0];
 
-      if (vignette) {
-        const k = 1 - vignette * (((x - cx) * (x - cx) + dy) / maxD);
+      if (vignette || flash) {
+        const dd = ((x - cx) * (x - cx) + dy) / maxD;
+        const k = (1 - vignette * dd) * (1 + flash * (1 - dd * 1.6));
         r *= k; gg *= k; b *= k;
       }
       if (grain) {
@@ -74,4 +101,19 @@ export function applyFilter(canvas, id, seed = 1) {
     }
   }
   g.putImageData(img, 0, 0);
+
+  // soft glow: a heavily blurred copy screened back on top
+  if (bloom) {
+    const t = document.createElement('canvas');
+    t.width = Math.max(1, Math.round(w / 12)); t.height = Math.max(1, Math.round(h / 12));
+    const tg = t.getContext('2d');
+    tg.imageSmoothingEnabled = true;
+    tg.drawImage(canvas, 0, 0, t.width, t.height);
+    g.save();
+    g.globalAlpha = bloom;
+    g.globalCompositeOperation = 'screen';
+    g.imageSmoothingEnabled = true;
+    g.drawImage(t, 0, 0, w, h);
+    g.restore();
+  }
 }

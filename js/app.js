@@ -1,7 +1,8 @@
 import { LAYOUTS, LAYOUT_ORDER, slotAspect } from './layouts.js';
 import { FRAMES, PACKS, frameById } from './frames.js';
-import { FILTERS } from './filters.js';
-import { renderStrip, drawStroke, fit, forgetShots, photoFor, CAPTION_FONT, MONO_FONT, EMOJI_FONT } from './render.js';
+import { FILTERS, Y2K_FILTERS } from './filters.js';
+import { renderStrip, drawStroke, drawStamp, fit, forgetShots, photoFor, CAPTION_FONT, MONO_FONT, EMOJI_FONT, PIXEL_FONT, LCD_FONT } from './render.js';
+import { digicamScene, EDITIONS, editionById } from './digicam.js';
 import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
 
 // ---------------------------------------------------------------------------
@@ -49,14 +50,17 @@ function loadPrefs() {
   try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; }
 }
 function savePrefs() {
-  const { layout, frame, pack, timer, caption, showDate } = S;
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ layout, frame, pack, timer, caption, showDate })); } catch { /* private mode */ }
+  // digicam mode borrows layout/frame/caption; the booth's own choices are kept aside
+  const b = S.mode === 'digicam' ? S.boothSetup : S;
+  const out = { layout: b.layout, frame: b.frame, caption: b.caption, pack: S.pack, timer: S.timer, showDate: S.showDate, edition: S.edition, cuts: S.cuts };
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(out)); } catch { /* private mode */ }
 }
 
 const prefs = loadPrefs();
 const S = {
   scene: 'start',
-  layout: LAYOUTS[prefs.layout] ? prefs.layout : 'vertical',
+  mode: 'booth',
+  layout: LAYOUT_ORDER.includes(prefs.layout) ? prefs.layout : 'vertical',
   frame: FRAMES.some((f) => f.id === prefs.frame) ? prefs.frame : 'black',
   pack: prefs.pack || 'simple',
   timer: [3, 5, 10].includes(prefs.timer) ? prefs.timer : 3,
@@ -64,6 +68,10 @@ const S = {
   filter: 'original',
   caption: typeof prefs.caption === 'string' ? prefs.caption : 'photobooth',
   showDate: prefs.showDate ?? true,
+  stamp: false,
+  edition: prefs.edition || 'lace',
+  cuts: [1, 2, 3, 4].includes(prefs.cuts) ? prefs.cuts : 3,
+  boothSetup: null,
   shots: [],   // { id, canvas, thumb }
   slots: [],   // shot id (or null) per slot
   deco: { stickers: [], strokes: [] },
@@ -74,8 +82,22 @@ const L = () => LAYOUTS[S.layout];
 const photos = () => S.slots.map((id) => S.shots.find((s) => s.id === id) || null);
 const stripOpts = (extra = {}) => ({
   layout: S.layout, frame: S.frame, photos: photos(), filter: S.filter,
-  caption: S.caption, showDate: S.showDate, ...extra,
+  caption: S.caption, showDate: S.showDate, stamp: S.stamp, ...extra,
 });
+
+// Switching between the classic booth and the digicam swaps which setup is live.
+function setMode(mode) {
+  if (mode === S.mode) return;
+  if (mode === 'digicam') {
+    S.boothSetup = { layout: S.layout, frame: S.frame, caption: S.caption };
+    const ed = editionById(S.edition);
+    S.layout = `y2k${S.cuts}`; S.frame = ed.frame; S.filter = ed.filter; S.caption = ed.caption; S.stamp = true;
+  } else {
+    Object.assign(S, S.boothSetup || {});
+    S.filter = 'original'; S.stamp = false;
+  }
+  S.mode = mode;
+}
 
 function resetShots() {
   S.shots = [];
@@ -105,7 +127,10 @@ function autoFill() {
 
 const ORDER = ['start', 'layout', 'frame', 'shoot', 'pick', 'style', 'decorate', 'done'];
 const STEP_OF = { layout: 'frame', frame: 'frame', shoot: 'shoot', pick: 'pick', style: 'style', decorate: 'style', done: 'done' };
-const STEPS = [['frame', 'Frame'], ['shoot', 'Shoot'], ['pick', 'Pick'], ['style', 'Style'], ['done', 'Done']];
+const BOOTH_STEPS = [['frame', 'Frame'], ['shoot', 'Shoot'], ['pick', 'Pick'], ['style', 'Style'], ['done', 'Done']];
+const DIGICAM_STEPS = [['shoot', 'Camera'], ['style', 'Style'], ['done', 'Save']];
+// where Back goes in digicam mode
+const DIGICAM_BACK = { digicam: 'start', style: 'digicam', decorate: 'style', done: 'decorate' };
 
 const app = document.getElementById('app');
 let cleanup = null;
@@ -116,12 +141,24 @@ function go(scene) {
   S.scene = scene;
   app.replaceChildren();
   app.dataset.scene = scene;
+  document.body.classList.toggle('y2k', S.mode === 'digicam' && scene !== 'start');
+  if (S.mode === 'digicam') document.body.style.setProperty('--y2k-bg', editionById(S.edition).page);
   window.scrollTo(0, 0);
   cleanup = SCENES[scene]() || null;
   if (scene !== 'start' && !history.state?.pb) history.pushState({ pb: 1 }, '');
 }
 
 async function back() {
+  if (S.mode === 'digicam') {
+    const prev = DIGICAM_BACK[S.scene];
+    if (!prev) return;
+    if (S.scene === 'style') {
+      if (!(await confirmBox('Retake your photos?', 'Going back to the camera clears the shots you just took.', 'Retake'))) return;
+      resetShots();
+    }
+    go(prev);
+    return;
+  }
   const i = ORDER.indexOf(S.scene);
   if (i <= 0) return;
   let prev = ORDER[i - 1];
@@ -142,6 +179,7 @@ window.addEventListener('popstate', () => {
 // shared chrome
 
 function header({ step, title, sub, next, nextLabel = 'Next', backLabel = 'Back' }) {
+  const STEPS = S.mode === 'digicam' ? DIGICAM_STEPS : BOOTH_STEPS;
   const idx = STEPS.findIndex(([id]) => id === step);
   const track = h('span.track', {}, h('span.track-fill', { style: { width: `${(idx / (STEPS.length - 1)) * 100}%` } }));
   const steps = h('div.steps', { role: 'list', 'aria-label': 'Steps' }, [track, ...STEPS.map(([id, label], i) =>
@@ -194,6 +232,8 @@ const fontsReady = (async () => {
     await Promise.all([
       document.fonts.load(`700 40px ${CAPTION_FONT}`),
       document.fonts.load(`400 20px ${MONO_FONT}`),
+      document.fonts.load(`400 20px ${PIXEL_FONT}`),
+      document.fonts.load(`400 20px ${LCD_FONT}`),
     ]);
   } catch { /* fall back to system fonts */ }
 })();
@@ -234,8 +274,12 @@ SCENES.start = () => {
     h('h1.hero-title', { text: 'Photobooth' }),
     h('p.hero-sub', { text: 'A real photo strip, shot on your phone. Pick a frame, strike a few poses, save it.' }),
     h('div.choices', {}, [
-      h('button.choice.dark', { onclick: () => { S.source = 'camera'; go('layout'); } }, [h('strong', { text: 'Start the booth' }), h('span', { text: 'with your camera' })]),
-      h('button.choice', { onclick: () => { S.source = 'upload'; go('layout'); } }, [h('strong', { text: 'Use my photos' }), h('span', { text: 'from your camera roll' })]),
+      h('button.choice.dark', { onclick: () => { setMode('booth'); S.source = 'camera'; go('layout'); } }, [h('strong', { text: 'Start the booth' }), h('span', { text: 'with your camera' })]),
+      h('button.choice', { onclick: () => { setMode('booth'); S.source = 'upload'; go('layout'); } }, [h('strong', { text: 'Use my photos' }), h('span', { text: 'from your camera roll' })]),
+      h('button.choice.y2k-choice', { onclick: () => { setMode('digicam'); resetShots(); go('digicam'); } }, [
+        h('strong', {}, [h('span.y2k-word', { text: 'Y2K digicam' }), h('em.new', { text: 'NEW' })]),
+        h('span', { text: 'retro camera + date stamp' }),
+      ]),
     ]),
     h('div.ways-label', {}, h('span', { text: 'How it works' })),
     h('div.ways', {}, [
@@ -525,10 +569,12 @@ SCENES.pick = () => {
 };
 
 SCENES.style = () => {
-  const hd = header({ step: 'style', title: 'Choose a look', sub: 'One filter for the whole strip.', next: () => go('decorate') });
+  const y2k = S.mode === 'digicam';
+  const hd = header({ step: 'style', title: y2k ? 'Make it cute' : 'Choose a look', sub: y2k ? 'Frame colour, filter, caption.' : 'One filter for the whole strip.', next: () => go('decorate') });
   const st = stripStage(previewBox());
   const sample = photos().find(Boolean) || S.shots[0];
-  const cards = FILTERS.map((f) => {
+  const list = y2k ? Y2K_FILTERS : FILTERS;
+  const cards = list.map((f) => {
     const c = h('canvas');
     if (sample) {
       const src = photoFor(sample, 180, 180, f.id);
@@ -537,20 +583,32 @@ SCENES.style = () => {
     }
     return h(`button.filter-card${S.filter === f.id ? '.is-selected' : ''}`, {
       'aria-pressed': String(S.filter === f.id),
-      onclick: () => { S.filter = f.id; savePrefs(); update(); },
+      onclick: () => { S.filter = f.id; update(); },
     }, [c, h('span', { text: f.name })]);
   });
+
+  // digicam: the frame colour lives here (the booth picks its frame before shooting)
+  const frameIds = y2k ? FRAMES.filter((f) => f.pack === 'y2k' || ['black', 'white', 'pink', 'blue'].includes(f.id)).map((f) => f.id) : [];
+  const frameCards = frameIds.map((id) => {
+    const { cssW, cssH, scale } = fit(S.layout, 56, 120);
+    const c = renderStrip({ layout: S.layout, frame: id, photos: [], caption: '', showDate: false }, scale);
+    c.style.width = `${cssW}px`; c.style.height = `${cssH}px`;
+    return h('button.frame-chip', { 'aria-label': `${frameById(id).name} frame`, onclick: () => { S.frame = id; update(); } }, [c, h('span', { text: frameById(id).name })]);
+  });
+
   const caption = h('input.field', {
     type: 'text', maxLength: 28, value: S.caption, placeholder: 'Write something', 'aria-label': 'Caption',
     oninput: () => { S.caption = caption.value; savePrefs(); schedule(); },
   });
   const dateToggle = h('input', { type: 'checkbox', checked: S.showDate, onchange: () => { S.showDate = dateToggle.checked; savePrefs(); update(); } });
+  const stampToggle = h('input', { type: 'checkbox', checked: S.stamp, onchange: () => { S.stamp = stampToggle.checked; update(); } });
 
   let raf = 0;
   const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
   function update() {
     st.draw();
-    cards.forEach((c, i) => { const on = FILTERS[i].id === S.filter; c.classList.toggle('is-selected', on); c.setAttribute('aria-pressed', String(on)); });
+    cards.forEach((c, i) => { const on = list[i].id === S.filter; c.classList.toggle('is-selected', on); c.setAttribute('aria-pressed', String(on)); });
+    frameCards.forEach((c, i) => c.classList.toggle('is-selected', frameIds[i] === S.frame));
   }
   update();
   fontsReady.then(update);
@@ -558,17 +616,22 @@ SCENES.style = () => {
   app.append(h('main.scene.split', {}, [hd.root, h('div.split-body', {}, [
     h('div.split-preview', {}, st.stage),
     h('div.split-side', {}, [
+      y2k ? h('p.side-label', { text: 'Frame colour' }) : null,
+      y2k ? h('div.filter-row.frame-row', {}, frameCards) : null,
       h('p.side-label', { text: 'Filter' }),
       h('div.filter-row', {}, cards),
       h('p.side-label', { text: 'Caption' }),
       caption,
-      h('label.toggle', {}, [dateToggle, h('span.switch'), h('span', { text: 'Print today’s date' })]),
+      h('label.toggle', {}, [stampToggle, h('span.switch'), h('span', { text: 'Date stamp on photos' })]),
+      h('label.toggle', {}, [dateToggle, h('span.switch'), h('span', { text: 'Print today’s date below' })]),
     ]),
   ])]));
   return () => cancelAnimationFrame(raf);
 };
 
 const STICKERS = ['💖', '💕', '💘', '🤍', '🖤', '✨', '⭐', '🌟', '💫', '🌸', '🌷', '🌹', '💐', '🎀', '👑', '🍒', '🍓', '🍰', '🧁', '🍭', '🧸', '🐻', '🐰', '🐱', '🐶', '🦋', '🌈', '☁️', '🌙', '☀️', '🔥', '🎉', '🎈', '🎂', '📸', '💌', '🫶', '✌️', '😘', '🥰', '😎', '🤪', '👀', '💋', '🍀', '🫧'];
+const Y2K_STICKERS = ['✨', '💖', '💜', '🦋', '🍒', '🎀', '⭐', '💫', '👑', '💿', '📀', '📼', '📟', '📱', '💾', '🎧', '🪩', '🫧', '💋', '🖤', '🌸', '🍓', '🧸', '🐰', '👼', '🔮', '💅', '👾', '😜', '🥺', '😘', '🌈'];
+const WORDS = [['xoxo', '#FF3EA5'], ['luv u', '#B44CFF'], ['<3', '#FF2E63'], ['BFF', '#2E7DFF'], ['y2k', '#00B894'], ['cutie', '#FF7A00'], ['4ever', '#B44CFF'], ['OMG', '#FF2E63']];
 const INKS = ['#17181C', '#FFFFFF', '#FF7BA3', '#FF4D4D', '#FFB23F', '#FFE45C', '#5BD08A', '#5FA0FF', '#9B7BFF'];
 
 SCENES.decorate = () => {
@@ -602,7 +665,7 @@ SCENES.decorate = () => {
       const isSel = st === selected;
       const n = h(`div.sticker${isSel ? '.is-sel' : ''}`, {
         style: { left: `${st.x * 100}%`, top: `${st.y * 100}%`, fontSize: `${st.size * cssW}px`, transform: `translate(-50%,-50%) rotate(${st.rot}rad)` },
-      }, [h('span.sticker-glyph', { text: st.emoji })]);
+      }, [h(`span.sticker-glyph${st.word ? '.word' : ''}`, { text: st.emoji, style: st.word ? { color: st.color } : {} })]);
       n.addEventListener('pointerdown', (e) => startDrag(e, st));
       if (isSel) {
         const del = h('button.handle.del', { html: ICON.close, 'aria-label': 'Remove sticker' });
@@ -728,16 +791,23 @@ SCENES.decorate = () => {
   }
 
   const stickerSize = (Lo.slots[0].h * 0.34) / Lo.W;
-  const stickerPanel = h('div.sticker-grid', {}, STICKERS.map((em) => h('button.sticker-btn', {
-    text: em, 'aria-label': `Add ${em}`,
-    onclick: () => {
-      snapshot();
-      const st = { emoji: em, x: 0.3 + Math.random() * 0.4, y: 0.2 + Math.random() * 0.6, size: stickerSize, rot: (Math.random() - 0.5) * 0.5 };
-      S.deco.stickers.push(st);
-      selected = st;
-      drawStickers();
-    },
-  })));
+  const addSticker = (extra) => {
+    snapshot();
+    const st = { x: 0.3 + Math.random() * 0.4, y: 0.2 + Math.random() * 0.6, size: stickerSize, rot: (Math.random() - 0.5) * 0.5, ...extra };
+    S.deco.stickers.push(st);
+    selected = st;
+    drawStickers();
+  };
+  const y2kMode = S.mode === 'digicam';
+  const stickerPanel = h('div.sticker-grid', {}, [
+    ...(y2kMode ? WORDS : []).map(([w, color]) => h('button.sticker-btn.word-btn', {
+      text: w, style: { color }, 'aria-label': `Add ${w}`,
+      onclick: () => addSticker({ emoji: w, word: true, color, size: stickerSize * 0.8 }),
+    })),
+    ...(y2kMode ? Y2K_STICKERS : STICKERS).map((em) => h('button.sticker-btn', {
+      text: em, 'aria-label': `Add ${em}`, onclick: () => addSticker({ emoji: em }),
+    })),
+  ]);
   const swatches = INKS.map((c) => h(`button.swatch${pen.color === c ? '.on' : ''}`, {
     style: { background: c }, 'aria-label': `Colour ${c}`,
     onclick: () => { pen.color = c; swatches.forEach((s, i) => s.classList.toggle('on', INKS[i] === c)); },
@@ -781,16 +851,19 @@ SCENES.done = () => {
   const imgWrap = h('div.final', { 'data-layout': S.layout });
   const saveBtn = h('button.btn.primary.big', { disabled: true }, [icon('download'), h('span', { text: 'Save photo' })]);
   const shareBtn = h('button.btn.ghost.big', { hidden: true }, [icon('share'), h('span', { text: 'Share' })]);
+  const n = photos().filter(Boolean).length;
+  const eachBtn = n > 1 ? h('button.btn.ghost.big', { onclick: saveEach }, [icon('image'), h('span', { text: `Save the ${n} photos separately` })]) : null;
   const tip = h('p.fineprint', { text: '' });
+  const y2k = S.mode === 'digicam';
   let url = null, file = null;
 
   app.append(h('main.scene.done', {}, [hd.root, h('div.done-body', {}, [
     imgWrap,
     h('div.done-side', {}, [
-      saveBtn, shareBtn, tip,
+      saveBtn, shareBtn, eachBtn, tip,
       h('div.done-more', {}, [
-        h('button.choice', { onclick: () => { resetShots(); go('shoot'); } }, [h('strong', { text: 'Shoot again' }), h('span', { text: 'same frame' })]),
-        h('button.choice', { onclick: () => { resetShots(); go('layout'); } }, [h('strong', { text: 'New strip' }), h('span', { text: 'start over' })]),
+        h('button.choice', { onclick: () => { resetShots(); go(y2k ? 'digicam' : 'shoot'); } }, [h('strong', { text: 'Shoot again' }), h('span', { text: y2k ? 'same camera' : 'same frame' })]),
+        h('button.choice', { onclick: () => { resetShots(); go('start'); } }, [h('strong', { text: 'New strip' }), h('span', { text: 'start over' })]),
       ]),
     ]),
   ])]));
@@ -828,8 +901,48 @@ SCENES.done = () => {
     tip.textContent = mobile ? 'Tip: you can also press and hold the strip to save it to Photos.' : `${canvas.width} × ${canvas.height} PNG, print-ready.`;
   })();
 
+  // Each photo on its own, filter and stamp included, full resolution.
+  async function saveEach() {
+    eachBtn.disabled = true;
+    try {
+      const Lo = L(), k = Lo.exportScale;
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+      const files = [];
+      const list = photos();
+      for (let i = 0; i < list.length; i++) {
+        if (!list[i]) continue;
+        const w = Math.round(Lo.slots[i].w * k * 2), hh = Math.round(Lo.slots[i].h * k * 2);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = hh;
+        const g = c.getContext('2d');
+        g.drawImage(photoFor(list[i], w, hh, S.filter), 0, 0);
+        if (S.stamp) drawStamp(g, 0, 0, w, hh);
+        const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92));
+        files.push(new File([blob], `photobooth-${stamp}-${files.length + 1}.jpg`, { type: 'image/jpeg' }));
+      }
+      const mobile = matchMedia('(pointer: coarse)').matches;
+      if (mobile && navigator.canShare && navigator.canShare({ files })) {
+        try { await navigator.share({ files }); return; } catch (e) { if (e.name === 'AbortError') return; }
+      }
+      for (const f of files) {
+        const u = URL.createObjectURL(f);
+        const a = h('a', { href: u, download: f.name });
+        document.body.append(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(u), 4000);
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    } finally {
+      eachBtn.disabled = false;
+    }
+  }
+
   return () => { if (url) setTimeout(() => URL.revokeObjectURL(url), 1000); };
 };
+
+SCENES.digicam = digicamScene({
+  S, h, icon, ICON, toast, header, go, back, savePrefs, fontsReady, addShot, resetShots, autoFill, setMode,
+  get app() { return app; },
+});
 
 function confetti() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;

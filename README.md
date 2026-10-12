@@ -16,6 +16,14 @@ A free online photobooth that runs in your browser. Take photos with your camera
 5. **Decorate**: emoji stickers (drag, pinch, rotate) and doodles.
 6. **Done**: save a print-ready PNG, or share it straight from your phone.
 
+### Y2K digicam mode
+
+Inspired by freqznow.site. Pick a camera edition (Lace, Chrome, Candy, Midnight, Mint,
+Dream) and you see yourself live on its LCD with a digicam look: 2000, GLOW, BNW, CCD,
+FLASH or BASIC. Snap each cut by hand (1 to 4 cuts, optional self-timer) and the orange
+`'26 10 12` date stamp gets burned in. Then choose a frame colour, add pixel word
+stickers ("xoxo", "luv u"…), and save the strip or each photo on its own.
+
 Everything happens on your device. Nothing is uploaded, and there's no account
 or tracking.
 
@@ -42,6 +50,7 @@ js/frames.js      frames, with patterns drawn in code
 js/filters.js     filters as pixel math (same result on iOS Safari)
 js/render.js      the one renderer behind every preview and the export
 js/camera.js      camera, uploads and sounds
+js/digicam.js     the Y2K digicam mode (camera editions, live LCD, snap)
 ```
 
 Inspired by the photobooth at getangie.com.

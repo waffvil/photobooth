@@ -166,10 +166,91 @@ export const FRAMES = [
     } },
 ];
 
+// --- Y2K digicam frames -------------------------------------------------------------
+const PIXEL = '"Silkscreen", "VT323", monospace';
+
+function sparkle(g, cx, cy, r) {
+  g.beginPath();
+  g.moveTo(cx, cy - r);
+  g.quadraticCurveTo(cx, cy, cx + r, cy);
+  g.quadraticCurveTo(cx, cy, cx, cy + r);
+  g.quadraticCurveTo(cx, cy, cx - r, cy);
+  g.quadraticCurveTo(cx, cy, cx, cy - r);
+  g.fill();
+}
+
+function butterfly(g, cx, cy, s, c) {
+  g.fillStyle = c;
+  g.beginPath(); g.ellipse(cx - s * 0.22, cy - s * 0.12, s * 0.24, s * 0.18, -0.5, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(cx + s * 0.22, cy - s * 0.12, s * 0.24, s * 0.18, 0.5, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(cx - s * 0.16, cy + s * 0.16, s * 0.15, s * 0.12, 0.4, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(cx + s * 0.16, cy + s * 0.16, s * 0.15, s * 0.12, -0.4, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.55)';
+  g.fillRect(cx - s * 0.025, cy - s * 0.25, s * 0.05, s * 0.5);
+}
+
+const y2kFrames = [
+  { id: 'lace', name: 'Lace', pack: 'y2k', bg: '#CDB6F0', slotBg: 'rgba(255,255,255,.45)', ink: '#4B2A7A', font: PIXEL, tile: 64,
+    draw(g, t) {
+      g.strokeStyle = 'rgba(75,42,122,.55)'; g.lineWidth = t * 0.035;
+      for (const [x, y] of [[0.25, 0.25], [0.75, 0.75]]) {
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI / 3) * i;
+          g.beginPath(); g.arc(t * x + Math.cos(a) * t * 0.1, t * y + Math.sin(a) * t * 0.1, t * 0.075, 0, Math.PI * 2); g.stroke();
+        }
+        g.fillStyle = 'rgba(75,42,122,.55)'; dot(g, t * x, t * y, t * 0.05);
+      }
+      g.fillStyle = 'rgba(75,42,122,.35)';
+      for (const [x, y] of [[0.75, 0.25], [0.25, 0.75], [0, 0], [0.5, 0.5]]) dot(g, t * x, t * y, t * 0.025);
+    } },
+  { id: 'chrome', name: 'Chrome', pack: 'y2k', bg: '#D9DDE4', slotBg: 'rgba(255,255,255,.5)', ink: '#2B2F3A', font: PIXEL,
+    paint(ctx, W, H) {
+      const gr = ctx.createLinearGradient(0, 0, W, H);
+      [['#F7F8FA', 0], ['#AEB3BE', 0.18], ['#EEF0F3', 0.36], ['#8F96A3', 0.55], ['#F3F4F6', 0.72], ['#A7ACB7', 0.88], ['#E7E9ED', 1]]
+        .forEach(([c, o]) => gr.addColorStop(o, c));
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    } },
+  { id: 'candy', name: 'Candy', pack: 'y2k', bg: '#FFB0D6', slotBg: 'rgba(255,255,255,.5)', ink: '#C2187A', font: PIXEL, tile: 140,
+    draw(g, t) {
+      const r = rng(11);
+      for (let i = 0; i < 26; i++) {
+        g.fillStyle = i % 3 ? 'rgba(255,255,255,.85)' : 'rgba(255,90,170,.7)';
+        dot(g, r() * t, r() * t, t * (0.006 + r() * 0.014));
+      }
+      g.fillStyle = 'rgba(255,255,255,.9)'; sparkle(g, t * 0.3, t * 0.3, t * 0.06); sparkle(g, t * 0.78, t * 0.7, t * 0.045);
+    } },
+  { id: 'cyber', name: 'Cyber', pack: 'y2k', bg: '#0C0C14', slotBg: 'rgba(255,255,255,.1)', ink: '#C6FF4D', font: PIXEL, tile: 130,
+    draw(g, t) {
+      g.fillStyle = '#C6FF4D'; sparkle(g, t * 0.28, t * 0.3, t * 0.1);
+      g.fillStyle = '#FF5FC8'; sparkle(g, t * 0.76, t * 0.74, t * 0.07);
+      g.fillStyle = 'rgba(255,255,255,.7)'; dot(g, t * 0.7, t * 0.22, t * 0.015); dot(g, t * 0.18, t * 0.8, t * 0.02);
+    } },
+  { id: 'butterfly', name: 'Flutter', pack: 'y2k', bg: '#BFF3E0', slotBg: 'rgba(255,255,255,.5)', ink: '#1F7A5A', font: PIXEL, tile: 150,
+    draw(g, t) { butterfly(g, t * 0.28, t * 0.3, t * 0.36, '#7FD8F5'); butterfly(g, t * 0.78, t * 0.78, t * 0.26, '#FF9FD0'); } },
+  { id: 'dream', name: 'Dream', pack: 'y2k', bg: '#B9D8FF', slotBg: 'rgba(255,255,255,.45)', ink: '#FFFFFF', font: PIXEL,
+    paint(ctx, W, H, unit) {
+      const gr = ctx.createLinearGradient(0, 0, 0, H);
+      gr.addColorStop(0, '#9CCBFF'); gr.addColorStop(0.5, '#E3C8FF'); gr.addColorStop(1, '#FFB3DA');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+      const r = rng(5);
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      for (let i = 0; i < Math.round((W * H) / (unit * unit * 9000)); i++) sparkle(ctx, r() * W, r() * H, unit * (6 + r() * 10));
+    } },
+  { id: 'icy', name: 'Icy', pack: 'y2k', bg: '#E4F1FF', slotBg: 'rgba(255,255,255,.55)', ink: '#3A6FD8', font: PIXEL, tile: 110,
+    draw(g, t) {
+      g.fillStyle = '#8DB8FF'; heart(g, t * 0.27, t * 0.27, t * 0.26);
+      g.fillStyle = '#E4F1FF'; heart(g, t * 0.27, t * 0.27, t * 0.15);
+      g.fillStyle = '#B4D2FF'; sparkle(g, t * 0.76, t * 0.74, t * 0.08);
+    } },
+];
+
+FRAMES.push(...y2kFrames);
+
 export const PACKS = [
   { id: 'simple', name: 'Simple' },
   { id: 'patterns', name: 'Patterns' },
   { id: 'seasons', name: 'Seasons' },
+  { id: 'y2k', name: 'Y2K' },
 ];
 
 export const frameById = (id) => FRAMES.find((f) => f.id === id) || FRAMES[0];
@@ -198,6 +279,7 @@ function tileFor(f, px) {
 export function paintFrame(ctx, f, W, H, scale, unit = 1) {
   ctx.fillStyle = f.bg;
   ctx.fillRect(0, 0, W, H);
+  if (f.paint) { f.paint(ctx, W, H, scale * unit); return; }
   if (!f.draw) return;
   const px = Math.max(8, Math.round(f.tile * scale * unit));
   const pat = ctx.createPattern(tileFor(f, px), 'repeat');
