@@ -4,7 +4,7 @@
 import { Y2K_FILTERS, filterById } from './filters.js';
 import { drawStamp } from './render.js';
 import { LAYOUTS } from './layouts.js';
-import { DEVICES, DEVICE_ORDER, drawDevice, drawScreenHud } from './devices.js';
+import { DEVICES, DEVICE_ORDER, drawDevice, drawScreenHud, loadDeviceImages, isReal } from './devices.js';
 import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
 
 export const EDITIONS = [
@@ -71,6 +71,7 @@ export function digicamScene(ctx) {
     const edChips = EDITIONS.map((e) => h('button.dc-ed', { 'aria-label': `${e.name} colour`, onclick: () => setEdition(e.id) },
       [h(`span.swatch-dot.skin-${e.id}`), h('span', { text: e.name })]));
     const edRow = h('div.dc-eds', {}, edChips);
+    const edLabel = h('p.dc-row-label');
     const fChips = Y2K_FILTERS.map((f) => h('button.dc-chip', { text: f.name, onclick: () => setFilter(f.id) }));
 
     // --- controls -----------------------------------------------------------------
@@ -95,6 +96,7 @@ export function digicamScene(ctx) {
       h('div.dc-controls', {}, [uploadBtn, snapBtn, flipBtn]),
       tray,
       hint,
+      edLabel,
       edRow,
       h('div.dc-chips', {}, fChips),
       settings,
@@ -131,13 +133,14 @@ export function digicamScene(ctx) {
       devBtns.forEach((b, i) => {
         const id = DEVICE_ORDER[i];
         const { canvas } = deviceCanvas(id, S.edition, 64, 56);
-        b.replaceChildren(h('span.dc-dev-art', {}, canvas), h('span', { text: DEVICES[id].name }));
+        b.replaceChildren(h('span.dc-dev-art', {}, canvas), h('span', { text: DEVICES[id].name }), isReal(id) ? h('em.real-tag', { text: 'REAL' }) : null);
       });
     }
 
     function paint() {
       devBtns.forEach((b, i) => b.classList.toggle('on', DEVICE_ORDER[i] === S.device));
       edChips.forEach((c, i) => c.classList.toggle('on', EDITIONS[i].id === ed.id));
+      edLabel.textContent = isReal(S.device) ? 'BACKGROUND' : 'BODY COLOUR';
       fChips.forEach((c, i) => c.classList.toggle('on', Y2K_FILTERS[i].id === S.filter));
       cutSegs.forEach((c, i) => c.classList.toggle('on', i + 1 === S.cuts));
       timerSegs.forEach((c, i) => c.classList.toggle('on', [0, 3, 5][i] === S.dcTimer));
@@ -271,6 +274,9 @@ export function digicamScene(ctx) {
     drawStage(); drawDeviceButtons(); paint();
     fontsReady.then(() => { if (alive) { drawStage(); drawDeviceButtons(); paint(); } });
     startCam();
+    loadDeviceImages().then(() => { if (alive) { drawStage(); drawDeviceButtons(); paint(); } });
+    // keep the picked device in view in the scrolling row
+    requestAnimationFrame(() => devBtns[DEVICE_ORDER.indexOf(S.device)]?.scrollIntoView({ inline: 'center', block: 'nearest' }));
 
     return () => { alive = false; closeCamera(); window.removeEventListener('resize', onResize); };
   };

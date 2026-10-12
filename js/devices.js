@@ -219,19 +219,73 @@ export const DEVICES = {
   },
 };
 
-export const DEVICE_ORDER = ['compact', 'slim', 'flip', 'bar'];
+// --- real devices (photos from Wikimedia Commons, cut out, screen straightened) ----------
+const REAL = [
+  { id: 'ixus', name: 'Canon IXUS', kind: 'camera', src: 'assets/devices/canon-ixus-70.webp', W: 1400, H: 949, screen: { x: 167, y: 284, w: 800, h: 556 },
+    credit: { what: 'Canon IXUS 70', author: 'David Gerard', license: 'Public domain', url: 'https://commons.wikimedia.org/wiki/File:Canon_Ixus_70_back.jpg' } },
+  { id: 'cybershot', name: 'Cyber-shot', kind: 'camera', src: 'assets/devices/sony-cyber-shot-t33.webp', W: 1400, H: 895, screen: { x: 105, y: 180, w: 757, h: 553 },
+    credit: { what: 'Sony Cyber-shot DSC-T33', author: 'DavidIvar', license: 'CC BY-SA 4.0', url: 'https://commons.wikimedia.org/wiki/File:SONY-Cyber-shot-dsc-T33-back.jpg' } },
+  { id: 'razr', name: 'RAZR', kind: 'phone', src: 'assets/devices/motorola-razr-v3-silver.webp', W: 379, H: 942, screen: { x: 58, y: 86, w: 245, h: 276 },
+    credit: { what: 'Motorola RAZR V3', author: 'Steve Jurvetson', license: 'CC BY 2.0', url: 'https://commons.wikimedia.org/wiki/File:RAZR_silver_plainbg.jpg' } },
+  { id: 'razrwhite', name: 'RAZR white', kind: 'phone', src: 'assets/devices/motorola-razr-v3-white.webp', W: 332, H: 953, screen: { x: 58, y: 104, w: 218, h: 275 },
+    credit: { what: 'Motorola RAZR V3 (white)', author: 'Raimond Spekking', license: 'CC BY-SA 4.0', url: 'https://commons.wikimedia.org/wiki/File:Motorola_Razr_V3_montage_closed_open.png' } },
+  { id: 'nokia', name: 'Nokia flip', kind: 'phone', src: 'assets/devices/nokia-2760.webp', W: 685, H: 2400, screen: { x: 118, y: 227, w: 453, h: 576 },
+    credit: { what: 'Nokia 2760', author: 'AnVuong1222004', license: 'CC BY-SA 4.0', url: 'https://commons.wikimedia.org/wiki/File:Nokia_2760_open.png' } },
+];
+
+const images = {};
+let loading = null;
+// Fetch the real-device photos once (only when digicam mode is used).
+export function loadDeviceImages() {
+  if (!loading) {
+    loading = Promise.all(REAL.map((d) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => { images[d.id] = img; resolve(); };
+      img.onerror = () => resolve();
+      img.src = d.src;
+    })));
+  }
+  return loading;
+}
+
+for (const d of REAL) {
+  DEVICES[d.id] = {
+    ...d, real: true,
+    pad: Math.round(Math.max(d.W, d.H) * 0.07),
+    exportScale: 1700 / (Math.max(d.W, d.H) * 1.14),
+    draw(ctx, s) {
+      const img = images[this.id];
+      ctx.save();
+      if (img) {
+        ctx.shadowColor = 'rgba(0,0,0,.45)';
+        ctx.shadowBlur = Math.max(this.W, this.H) * 0.03 * s;
+        ctx.shadowOffsetY = Math.max(this.W, this.H) * 0.015 * s;
+        ctx.drawImage(img, 0, 0, this.W * s, this.H * s);
+      } else {
+        rr(ctx, 0, 0, this.W * s, this.H * s, Math.min(this.W, this.H) * 0.08 * s);
+        ctx.fillStyle = 'rgba(255,255,255,.25)';
+        ctx.fill();
+      }
+      ctx.restore();
+    },
+  };
+}
+
+export const DEVICE_ORDER = ['ixus', 'cybershot', 'razr', 'razrwhite', 'nokia', 'compact', 'slim', 'flip', 'bar'];
+export const isReal = (id) => !!DEVICES[id]?.real;
 
 // One slot per device: the screen.
 export const DEVICE_PAD = 70;
+const padOf = (d) => d.pad ?? DEVICE_PAD;
 export function deviceLayouts() {
   const out = {};
-  const P = DEVICE_PAD;
   for (const [id, d] of Object.entries(DEVICES)) {
+    const P = padOf(d);
     const sc = d.screen;
     out[`dev-${id}`] = {
       id: `dev-${id}`, name: d.name, hint: d.kind, device: id,
       W: d.W + P * 2, H: d.H + P * 2, slots: [{ x: sc.x + P, y: sc.y + P, w: sc.w, h: sc.h }], footer: { y: d.H + P * 2, h: 0 },
-      shots: 1, exportScale: 1.4, caption: 0, date: 0,
+      shots: 1, exportScale: d.exportScale ?? 1.4, caption: 0, date: 0,
     };
   }
   return out;
@@ -301,7 +355,8 @@ export function drawGlare(ctx, x, y, w, h) {
 export function drawDevice(ctx, deviceId, skinId, s, { backdrop = true } = {}) {
   const d = DEVICES[deviceId];
   const skin = SKINS[skinId] || SKINS.chrome;
-  const W = (d.W + DEVICE_PAD * 2) * s, H = (d.H + DEVICE_PAD * 2) * s;
+  const P = padOf(d);
+  const W = (d.W + P * 2) * s, H = (d.H + P * 2) * s;
   if (backdrop) {
     const g = ctx.createRadialGradient(W / 2, H * 0.3, 0, W / 2, H * 0.3, Math.max(W, H) * 0.8);
     g.addColorStop(0, skin.bg[0]); g.addColorStop(1, skin.bg[1]);
@@ -309,7 +364,7 @@ export function drawDevice(ctx, deviceId, skinId, s, { backdrop = true } = {}) {
     ctx.fillRect(0, 0, W, H);
   }
   ctx.save();
-  ctx.translate(DEVICE_PAD * s, DEVICE_PAD * s);
+  ctx.translate(P * s, P * s);
   d.draw.call(d, ctx, s, skin);
   ctx.restore();
 }

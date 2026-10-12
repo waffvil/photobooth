@@ -3,7 +3,7 @@ import { FRAMES, PACKS, frameById } from './frames.js';
 import { FILTERS, Y2K_FILTERS } from './filters.js';
 import { renderStrip, drawStroke, drawStamp, fit, forgetShots, photoFor, CAPTION_FONT, MONO_FONT, EMOJI_FONT, PIXEL_FONT, LCD_FONT } from './render.js';
 import { digicamScene, EDITIONS, editionById, deviceCanvas } from './digicam.js';
-import { DEVICES, DEVICE_ORDER } from './devices.js';
+import { DEVICES, DEVICE_ORDER, loadDeviceImages, isReal } from './devices.js';
 import { hasCamera, openCamera, closeCamera, grabFrame, fileToCanvas, unlockAudio, beep, shutter } from './camera.js';
 
 // ---------------------------------------------------------------------------
@@ -72,7 +72,7 @@ const S = {
   stamp: false,
   edition: prefs.edition || 'lace',
   cuts: [1, 2, 3, 4].includes(prefs.cuts) ? prefs.cuts : 3,
-  device: DEVICES[prefs.device] ? prefs.device : 'compact',
+  device: DEVICES[prefs.device] ? prefs.device : 'ixus',
   format: prefs.format === 'strip' ? 'strip' : 'device',   // digicam output: photo on the device, or a strip
   hud: true,
   cut: 0,      // which cut a device-format screen is showing
@@ -110,6 +110,7 @@ function selectCut(i) {
 function setMode(mode) {
   if (mode === S.mode) return;
   if (mode === 'digicam') {
+    loadDeviceImages();
     S.boothSetup = { layout: S.layout, frame: S.frame, caption: S.caption };
     const ed = editionById(S.edition);
     S.frame = ed.frame; S.filter = ed.filter; S.caption = ed.caption; S.stamp = true;
@@ -654,12 +655,12 @@ SCENES.style = () => {
       kids.push(h('p.side-label', { text: 'Device' }));
       kids.push(h('div.filter-row.device-row', {}, DEVICE_ORDER.map((id) => {
         const { canvas } = deviceCanvas(id, S.edition, 70, 60);
-        const b = h('button.device-chip', { onclick: () => { S.device = id; syncLayout(); savePrefs(); build(); } }, [h('span.device-art', {}, canvas), h('span', { text: DEVICES[id].name })]);
+        const b = h('button.device-chip', { onclick: () => { S.device = id; syncLayout(); savePrefs(); build(); } }, [h('span.device-art', {}, canvas), h('span', { text: DEVICES[id].name }), isReal(id) ? h('em.real-tag', { text: 'REAL' }) : null]);
         b._on = () => S.device === id;
         sel.push(b);
         return b;
       })));
-      kids.push(h('p.side-label', { text: 'Colour' }));
+      kids.push(h('p.side-label', { text: isReal(S.device) ? 'Background' : 'Colour' }));
       kids.push(h('div.filter-row', {}, EDITIONS.map((e) => {
         const b = h('button.colour-chip', { onclick: () => { S.edition = e.id; savePrefs(); build(); } }, [h(`span.swatch-dot.skin-${e.id}`), h('span', { text: e.name })]);
         b._on = () => S.edition === e.id;
@@ -693,6 +694,7 @@ SCENES.style = () => {
     if (y2k && S.format === 'device') kids.push(toggle('Screen info (battery, file no.)', () => S.hud, (v) => { S.hud = v; }));
     else kids.push(toggle('Print today’s date below', () => S.showDate, (v) => { S.showDate = v; savePrefs(); }));
 
+    if (y2k && S.format === 'device') kids.push(creditLine());
     side.replaceChildren(...kids);
     side._sel = sel;
     update();
@@ -704,6 +706,7 @@ SCENES.style = () => {
   }
   build();
   fontsReady.then(() => st && update());
+  if (y2k) loadDeviceImages().then(() => { if (S.scene === 'style') build(); });
 
   app.append(h('main.scene.split', {}, [hd.root, h('div.split-body', {}, [previewWrap, side])]));
   return () => cancelAnimationFrame(raf);
@@ -922,6 +925,7 @@ SCENES.decorate = () => {
 
   drawBase(); drawInk(); drawStickers();
   fontsReady.then(drawBase);
+  if (deviceFormat()) loadDeviceImages().then(() => { if (S.scene === 'decorate') drawBase(); });
 
   app.append(h('main.scene.split', {}, [hd.root, h('div.split-body', {}, [
     h('div.split-preview', {}, stage),
@@ -1034,6 +1038,14 @@ function doneStrip() {
   return () => { if (url) setTimeout(() => URL.revokeObjectURL(url), 1000); };
 }
 
+// The photo credit a real device's licence asks for.
+function creditLine() {
+  const d = DEVICES[S.device];
+  if (!d?.real) return null;
+  const c = d.credit;
+  return h('p.credit', {}, ['Device photo: ', h('a', { href: c.url, target: '_blank', rel: 'noopener', text: `${c.what}` }), ` by ${c.author}, ${c.license}`]);
+}
+
 // Device format: every cut comes out as its own picture of the device.
 function doneDevices() {
   const n = S.shots.length;
@@ -1048,7 +1060,7 @@ function doneDevices() {
   app.append(h('main.scene.done', {}, [hd.root, h('div.done-body', {}, [
     h('div.gallery-wrap', {}, [gallery, n > 1 ? dots : null]),
     h('div.done-side', {}, [
-      saveBtn, oneBtn, tip,
+      saveBtn, oneBtn, tip, creditLine(),
       h('div.done-more', {}, [
         h('button.choice', { onclick: () => { resetShots(); go('digicam'); } }, [h('strong', { text: 'Shoot again' }), h('span', { text: 'same device' })]),
         h('button.choice', { onclick: () => { resetShots(); go('start'); } }, [h('strong', { text: 'New photos' }), h('span', { text: 'start over' })]),
@@ -1076,6 +1088,7 @@ function doneDevices() {
 
   (async () => {
     await fontsReady;
+    await loadDeviceImages();
     S.decos[S.cut] = S.deco;
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
     for (let i = 0; i < n; i++) {
