@@ -112,13 +112,15 @@ function thump(t, from, to, vol, dur) {
   o.start(t); o.stop(t + dur + 0.02);
 }
 
-// A soft mouse click: press, then release.
+// The old-browser "navigation" click: one crisp tick with a short hollow, plasticky
+// ring (two resonances), the way a link click sounded on a 2000s desktop.
 export function click() {
   if (!ready()) return;
   const t = ac.currentTime + 0.001;
-  tick(t, 4200, 1.6, 0.016, 1.1);
-  thump(t, 900, 300, 0.12, 0.02);
-  tick(t + 0.055, 3300, 0.8, 0.012, 1.1);
+  tick(t, 7000, 0.5, 0.006, 0.7, 'highpass');
+  tick(t, 1450, 3.4, 0.05, 9);
+  tick(t, 3100, 1.5, 0.035, 7);
+  thump(t, 600, 220, 0.08, 0.015);
 }
 
 // A round digicam beep: soft attack, a quiet octave on top, gentle tail.
